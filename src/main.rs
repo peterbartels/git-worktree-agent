@@ -276,24 +276,21 @@ fn show_config(repo_path: &PathBuf) -> Result<()> {
         config.post_create_command.as_deref().unwrap_or("(none)")
     );
     println!();
-    println!("Tracked branches ({}):", config.tracked_branches.len());
-    for branch in &config.tracked_branches {
-        println!("  + {}", branch);
-    }
-    println!();
-    println!("Untracked branches ({}):", config.untracked_branches.len());
-    for branch in &config.untracked_branches {
-        println!("  - {}", branch);
-    }
-    println!();
     println!("Ignore patterns ({}):", config.ignore_patterns.len());
     for pattern in &config.ignore_patterns {
         println!("  * {}", pattern);
     }
-    println!();
-    println!("Active worktrees ({}):", config.worktrees.len());
-    for wt in &config.worktrees {
-        println!("  {} -> {}", wt.branch, wt.path.display());
+
+    // Show actual worktrees from git
+    let manager = git::WorktreeManager::new(&repo);
+    if let Ok(worktrees) = manager.list() {
+        println!();
+        println!("Active worktrees ({}):", worktrees.len());
+        for wt in &worktrees {
+            if let Some(branch) = &wt.branch {
+                println!("  {} -> {}", branch, wt.path.display());
+            }
+        }
     }
 
     Ok(())

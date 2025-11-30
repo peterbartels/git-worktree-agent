@@ -1,12 +1,10 @@
 //! Configuration management for git-worktree-agent
 //!
-//! Stores user preferences and tracked/untracked branches in a JSON file
-//! that is gitignored (since it's per-user different).
+//! Stores user preferences in a JSON file that is gitignored (since it's per-user different).
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// The name of the config file stored in the git repository root
@@ -31,17 +29,10 @@ pub struct Config {
     #[serde(default)]
     pub command_working_dir: Option<String>,
 
-    /// Patterns for branches to automatically ignore (glob patterns)
-    #[serde(default)]
+    /// Patterns for branches to ignore (glob patterns or exact names)
+    /// Use 't' key to toggle branches, or add patterns like "dependabot/*"
+    #[serde(default = "default_ignore_patterns")]
     pub ignore_patterns: Vec<String>,
-
-    /// Branches that are explicitly tracked (worktrees will be created)
-    #[serde(default)]
-    pub tracked_branches: HashSet<String>,
-
-    /// Branches that are explicitly untracked (will not create worktrees)
-    #[serde(default)]
-    pub untracked_branches: HashSet<String>,
 
     /// Whether to auto-create worktrees for new branches
     #[serde(default = "default_auto_create")]
@@ -58,10 +49,6 @@ pub struct Config {
     /// Remote name to watch (default: "origin")
     #[serde(default = "default_remote")]
     pub remote_name: String,
-
-    /// Worktree states (persisted between runs)
-    #[serde(default)]
-    pub worktrees: Vec<WorktreeState>,
 
     /// Last time we fetched from remote
     #[serde(default)]
@@ -88,6 +75,10 @@ fn default_remote() -> String {
     "origin".to_string()
 }
 
+fn default_ignore_patterns() -> Vec<String> {
+    vec!["dependabot/*".to_string(), "renovate/*".to_string()]
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -95,52 +86,14 @@ impl Default for Config {
             poll_interval_secs: default_poll_interval(),
             post_create_command: None,
             command_working_dir: None,
-            ignore_patterns: vec!["dependabot/*".to_string(), "renovate/*".to_string()],
-            tracked_branches: HashSet::new(),
-            untracked_branches: HashSet::new(),
+            ignore_patterns: default_ignore_patterns(),
             auto_create_worktrees: default_auto_create(),
             worktree_base_dir: default_worktree_base(),
             base_branch: None,
             remote_name: default_remote(),
-            worktrees: vec![],
             last_fetch: None,
         }
     }
-}
-
-/// State of a worktree
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WorktreeState {
-    /// Branch name
-    pub branch: String,
-
-    /// Path to the worktree directory
-    pub path: PathBuf,
-
-    /// When the worktree was created
-    pub created_at: DateTime<Utc>,
-
-    /// Status of the post-create command
-    pub hook_status: HookStatus,
-
-    /// Whether this worktree is currently active
-    pub is_active: bool,
-}
-
-/// Status of the post-create hook command
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub enum HookStatus {
-    /// No hook configured or not yet run
-    #[default]
-    None,
-    /// Hook is currently running
-    Running,
-    /// Hook completed successfully
-    Success,
-    /// Hook failed with an error message
-    Failed(String),
-    /// Hook was skipped
-    Skipped,
 }
 
 impl Config {
@@ -178,60 +131,36 @@ impl Config {
 
     /// Check if a branch should be ignored based on patterns
     pub fn should_ignore_branch(&self, branch: &str) -> bool {
-        // Check explicit untracked list
-        if self.untracked_branches.contains(branch) {
-            return true;
-        }
-
-        // Check ignore patterns
         for pattern in &self.ignore_patterns {
+            // Try as glob pattern first
             if let Ok(glob_pattern) = glob::Pattern::new(pattern) {
                 if glob_pattern.matches(branch) {
                     return true;
                 }
             }
+            // Also check exact match (for branch names added via 't' key)
+            if pattern == branch {
+                return true;
+            }
         }
-
         false
     }
 
-    /// Check if a branch is explicitly tracked
-    pub fn is_tracked(&self, branch: &str) -> bool {
-        self.tracked_branches.contains(branch)
+    /// Check if a branch is in the ignore list (exact match, not pattern)
+    pub fn is_ignored(&self, branch: &str) -> bool {
+        self.ignore_patterns.contains(&branch.to_string())
     }
 
-    /// Track a branch
-    pub fn track_branch(&mut self, branch: &str) {
-        self.untracked_branches.remove(branch);
-        self.tracked_branches.insert(branch.to_string());
+    /// Add a branch to the ignore list (removes from ignore if was pattern-matched)
+    pub fn ignore_branch(&mut self, branch: &str) {
+        if !self.ignore_patterns.contains(&branch.to_string()) {
+            self.ignore_patterns.push(branch.to_string());
+        }
     }
 
-    /// Untrack a branch
-    pub fn untrack_branch(&mut self, branch: &str) {
-        self.tracked_branches.remove(branch);
-        self.untracked_branches.insert(branch.to_string());
-    }
-
-    /// Add a worktree state
-    pub fn add_worktree(&mut self, worktree: WorktreeState) {
-        // Remove any existing entry for this branch
-        self.worktrees.retain(|w| w.branch != worktree.branch);
-        self.worktrees.push(worktree);
-    }
-
-    /// Remove a worktree state
-    pub fn remove_worktree(&mut self, branch: &str) {
-        self.worktrees.retain(|w| w.branch != branch);
-    }
-
-    /// Get worktree state by branch name
-    pub fn get_worktree(&self, branch: &str) -> Option<&WorktreeState> {
-        self.worktrees.iter().find(|w| w.branch == branch)
-    }
-
-    /// Get mutable worktree state by branch name
-    pub fn get_worktree_mut(&mut self, branch: &str) -> Option<&mut WorktreeState> {
-        self.worktrees.iter_mut().find(|w| w.branch == branch)
+    /// Remove a branch from the ignore list (unignore)
+    pub fn unignore_branch(&mut self, branch: &str) {
+        self.ignore_patterns.retain(|p| p != branch);
     }
 
     /// Get the worktree directory path for a branch
@@ -274,7 +203,7 @@ mod tests {
     fn test_should_ignore_branch() {
         let mut config = Config::default();
         config.ignore_patterns.push("feature/*".to_string());
-        config.untracked_branches.insert("main".to_string());
+        config.ignore_patterns.push("main".to_string());
 
         assert!(config.should_ignore_branch("feature/test"));
         assert!(config.should_ignore_branch("main"));

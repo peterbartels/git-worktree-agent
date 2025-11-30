@@ -15,7 +15,7 @@ use crossterm::event::{self, Event, KeyEventKind};
 use ratatui::{DefaultTerminal, Frame};
 
 use crate::config::Config;
-use crate::git::{Repository, WorktreeManager};
+use crate::git::Repository;
 use crate::ui::{AppStatus, BranchListState, HelpWidget, LogsState, Theme};
 use crate::watcher::{Watcher, WatcherEvent};
 
@@ -80,7 +80,7 @@ impl App {
             is_fetching: false,
             last_fetch: config.last_fetch,
             remote_branch_count: watcher.get_known_branches().len(),
-            worktree_count: config.worktrees.len(),
+            worktree_count: 0, // Will be updated on first branch list update
             running_hooks: 0,
             last_error: None,
             auto_create_enabled: config.auto_create_worktrees,
@@ -131,44 +131,11 @@ impl App {
             settings_state: None,
         };
 
-        // Only sync if not in setup mode
+        // Only update branch list if not in setup mode
         if !is_first_run {
-            app.sync_worktrees_with_git();
             app.update_branch_list();
         }
         Ok(app)
-    }
-
-    /// Sync config worktrees with actual git worktree state
-    /// Removes worktrees from config that no longer exist in git
-    fn sync_worktrees_with_git(&mut self) {
-        let manager = WorktreeManager::new(&self.repo);
-
-        if let Ok(git_worktrees) = manager.list() {
-            // Get the set of branches that have actual worktrees
-            let existing_branches: std::collections::HashSet<String> = git_worktrees
-                .iter()
-                .filter_map(|wt| wt.branch.clone())
-                .collect();
-
-            // Remove worktrees from config that don't exist in git anymore
-            let removed: Vec<String> = self
-                .config
-                .worktrees
-                .iter()
-                .filter(|wt| !existing_branches.contains(&wt.branch))
-                .map(|wt| wt.branch.clone())
-                .collect();
-
-            for branch in &removed {
-                self.config.remove_worktree(branch);
-            }
-
-            // Save if we removed anything
-            if !removed.is_empty() {
-                let _ = self.config.save(self.repo.root());
-            }
-        }
     }
 
     /// Run the application's main loop

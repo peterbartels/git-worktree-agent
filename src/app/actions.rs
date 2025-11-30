@@ -4,7 +4,6 @@ use tracing::{debug, error, info};
 
 use super::App;
 use super::state::ViewMode;
-use crate::config::HookStatus;
 use crate::git::WorktreeManager;
 use crate::ui::BranchStatus;
 use crate::watcher::WatcherEvent;
@@ -12,9 +11,6 @@ use crate::watcher::WatcherEvent;
 impl App {
     /// Update the branch list from current state
     pub(super) fn update_branch_list(&mut self) {
-        // First sync config with actual git state
-        self.sync_worktrees_with_git();
-
         let manager = WorktreeManager::new(&self.repo);
         let worktrees = manager.list().unwrap_or_default();
 
@@ -37,7 +33,7 @@ impl App {
                     }
                 } else if self.watcher.is_pending(&branch.name) {
                     BranchStatus::Queued
-                } else if self.config.untracked_branches.contains(&branch.name) {
+                } else if self.config.is_ignored(&branch.name) {
                     BranchStatus::Untracked
                 } else if let Some(wt) = existing_worktree {
                     // Check if hook is running for this worktree
@@ -194,13 +190,11 @@ impl App {
                 WatcherEvent::HookCompleted(branch, exit_code) => {
                     self.status.running_hooks = self.status.running_hooks.saturating_sub(1);
 
-                    // Update worktree hook status
-                    if let Some(wt) = self.config.get_worktree_mut(&branch) {
-                        wt.hook_status = if exit_code == 0 {
-                            HookStatus::Success
-                        } else {
-                            HookStatus::Failed(format!("Exit code: {}", exit_code))
-                        };
+                    if exit_code != 0 {
+                        self.status.last_error = Some(format!(
+                            "Hook failed for {}: exit code {}",
+                            branch, exit_code
+                        ));
                     }
 
                     self.update_branch_list();
@@ -216,7 +210,9 @@ impl App {
     /// Update status from current state
     pub(super) fn update_status(&mut self) {
         self.status.remote_branch_count = self.watcher.get_known_branches().len();
-        self.status.worktree_count = self.config.worktrees.len();
+        // Count worktrees from git directly
+        let manager = WorktreeManager::new(&self.repo);
+        self.status.worktree_count = manager.list().map(|w| w.len()).unwrap_or(0);
         self.status.auto_create_enabled = self.config.auto_create_worktrees;
         self.status.poll_interval = self.config.poll_interval_secs;
     }
@@ -293,30 +289,22 @@ impl App {
             if let Err(e) = manager.remove(&path, false) {
                 error!("Failed to remove worktree: {}", e);
                 self.status.last_error = Some(e.to_string());
-            } else {
-                // Update config
-                self.config.remove_worktree(branch);
-                self.config.untrack_branch(branch);
-
-                if let Err(e) = self.config.save(self.repo.root()) {
-                    error!("Failed to save config: {}", e);
-                }
             }
         }
 
         self.update_branch_list();
     }
 
-    /// Toggle tracking for the selected branch
+    /// Toggle ignore for the selected branch
     pub(super) fn toggle_track_selected(&mut self) {
         let Some(selected) = self.branch_list_state.selected().cloned() else {
             return;
         };
 
-        if self.config.untracked_branches.contains(&selected.name) {
-            self.config.track_branch(&selected.name);
+        if self.config.is_ignored(&selected.name) {
+            self.config.unignore_branch(&selected.name);
         } else {
-            self.config.untrack_branch(&selected.name);
+            self.config.ignore_branch(&selected.name);
         }
 
         if let Err(e) = self.config.save(self.repo.root()) {

@@ -2,10 +2,11 @@
 //!
 //! Polls the remote repository for new branches and triggers worktree creation
 
-use crate::config::{Config, HookStatus, WorktreeState};
+use chrono::Utc;
+
+use crate::config::Config;
 use crate::executor::{CommandExecutor, CommandLog, CommandOutput, RunningCommand};
 use crate::git::{RemoteBranch, Repository, WorktreeManager};
-use chrono::Utc;
 use color_eyre::eyre::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -402,19 +403,6 @@ impl Watcher {
                     branch.to_string(),
                     worktree_path.clone(),
                 ));
-
-                // Track the branch
-                config.track_branch(branch);
-
-                // Add worktree state
-                let worktree_state = WorktreeState {
-                    branch: branch.to_string(),
-                    path: worktree_path.clone(),
-                    created_at: Utc::now(),
-                    hook_status: HookStatus::None,
-                    is_active: true,
-                };
-                config.add_worktree(worktree_state);
             }
             Err(e) => {
                 error!("Failed to create worktree for {}: {}", branch, e);
@@ -430,11 +418,9 @@ impl Watcher {
 
         // Run post-create hook if configured
         let mut hook_started = false;
-        if config.get_worktree(branch).is_some() {
-            if let Some(cmd) = config.post_create_command.clone() {
-                self.run_hook(config, branch, &cmd, &worktree_path, event_tx)?;
-                hook_started = true;
-            }
+        if let Some(cmd) = config.post_create_command.clone() {
+            self.run_hook(branch, &cmd, &worktree_path, event_tx)?;
+            hook_started = true;
         }
 
         // If no hook was started, clear current_processing so next branch can proceed
@@ -448,7 +434,6 @@ impl Watcher {
     /// Run a hook command for a branch
     fn run_hook(
         &mut self,
-        config: &mut Config,
         branch: &str,
         command: &str,
         worktree_path: &PathBuf,
@@ -456,24 +441,12 @@ impl Watcher {
     ) -> Result<()> {
         let _ = event_tx.send(WatcherEvent::HookStarted(branch.to_string()));
 
-        // Determine working directory
-        let working_dir = if let Some(ref subdir) = config.command_working_dir {
-            worktree_path.join(subdir)
-        } else {
-            worktree_path.clone()
-        };
-
-        // Update hook status
-        if let Some(wt) = config.get_worktree_mut(branch) {
-            wt.hook_status = HookStatus::Running;
-        }
-
         // Create command log
         let log = CommandLog::new(branch.to_string(), command.to_string());
         self.command_logs.push(log);
 
-        // Start async command
-        let running = CommandExecutor::run_async(command.to_string(), &working_dir)?;
+        // Start async command in the worktree directory
+        let running = CommandExecutor::run_async(command.to_string(), worktree_path)?;
         self.running_hooks.insert(branch.to_string(), running);
 
         Ok(())
