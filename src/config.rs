@@ -95,7 +95,10 @@ impl Default for Config {
             poll_interval_secs: default_poll_interval(),
             post_create_command: None,
             command_working_dir: None,
-            ignore_patterns: vec![],
+            ignore_patterns: vec![
+                "dependabot/*".to_string(),
+                "renovate/*".to_string(),
+            ],
             tracked_branches: HashSet::new(),
             untracked_branches: HashSet::new(),
             auto_create_worktrees: default_auto_create(),

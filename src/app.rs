@@ -808,7 +808,8 @@ impl App {
     /// Render full-screen logs view
     fn render_logs_fullscreen(&mut self, frame: &mut Frame, area: Rect) {
         frame.render_widget(
-            ScrollableLogsWidget::new(&self.watcher.command_logs, &self.theme, &mut self.logs_state),
+            ScrollableLogsWidget::new(&self.watcher.command_logs, &self.theme, &mut self.logs_state)
+                .show_all(),
             area,
         );
     }
@@ -1554,9 +1555,12 @@ impl App {
                     self.status.is_fetching = true;
                 }
                 WatcherEvent::FetchCompleted(output) => {
-                    // Log any fetch output (warnings, etc.) to command logs
+                    // Log fetch result to command logs
                     if let Some(msg) = output {
                         self.watcher.add_fetch_log(&self.config.remote_name, &msg);
+                    } else {
+                        // No warnings/errors - log simple success
+                        self.watcher.add_fetch_success_log(&self.config.remote_name);
                     }
                     // Process the completed fetch - update branches
                     self.watcher.on_fetch_complete(&self.repo, &mut self.config, &self.event_tx);
@@ -1690,7 +1694,7 @@ impl App {
         if let Ok(worktrees) = manager.list() {
             if let Some(wt) = worktrees.iter().find(|w| w.branch.as_deref() == Some(&selected.name)) {
                 if wt.is_main {
-                    self.status.last_error = Some("Cannot delete the main worktree (contains .git)".to_string());
+                    self.status.last_error = Some("Cannot delete the main worktree".to_string());
                     return;
                 }
             }

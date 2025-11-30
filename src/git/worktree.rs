@@ -112,6 +112,18 @@ impl<'a> WorktreeManager<'a> {
         Ok(worktrees)
     }
 
+    /// Check if a local branch exists
+    fn local_branch_exists(&self, branch: &str) -> bool {
+        let output = Command::new("git")
+            .args(["rev-parse", "--verify", &format!("refs/heads/{}", branch)])
+            .current_dir(self.repo.root())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        
+        output.map(|s| s.success()).unwrap_or(false)
+    }
+
     /// Create a new worktree for a branch
     /// Returns (success, output_messages) where output_messages contains git output for logging
     pub fn create(&self, branch: &str, path: &Path, remote: &str) -> Result<Vec<String>> {
@@ -131,25 +143,46 @@ impl<'a> WorktreeManager<'a> {
             return Err(eyre!("Worktree path already exists: {}", path.display()));
         }
 
-        // Create the worktree tracking the remote branch
-        let remote_ref = format!("{}/{}", remote, branch);
-        log_messages.push(format!("$ git worktree add --track -b {} {} {}", branch, path.display(), remote_ref));
+        // Check if branch exists locally to determine the right command
+        let branch_exists_locally = self.local_branch_exists(branch);
         
-        let output = Command::new("git")
-            .args([
-                "worktree",
-                "add",
-                "--track",
-                "-b",
-                branch,
-                path.to_string_lossy().as_ref(),
-                &remote_ref,
-            ])
-            .current_dir(self.repo.root())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .with_context(|| "Failed to run git worktree add")?;
+        let output = if branch_exists_locally {
+            // Branch exists locally - just create worktree using existing branch
+            log_messages.push(format!("$ git worktree add {} {}", path.display(), branch));
+            
+            Command::new("git")
+                .args([
+                    "worktree",
+                    "add",
+                    path.to_string_lossy().as_ref(),
+                    branch,
+                ])
+                .current_dir(self.repo.root())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .with_context(|| "Failed to run git worktree add")?
+        } else {
+            // Branch doesn't exist locally - create it tracking remote
+            let remote_ref = format!("{}/{}", remote, branch);
+            log_messages.push(format!("$ git worktree add --track -b {} {} {}", branch, path.display(), remote_ref));
+            
+            Command::new("git")
+                .args([
+                    "worktree",
+                    "add",
+                    "--track",
+                    "-b",
+                    branch,
+                    path.to_string_lossy().as_ref(),
+                    &remote_ref,
+                ])
+                .current_dir(self.repo.root())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .with_context(|| "Failed to run git worktree add")?
+        };
 
         // Capture all output
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -162,44 +195,8 @@ impl<'a> WorktreeManager<'a> {
         }
 
         if !output.status.success() {
-            // If branch already exists locally, try without -b
-            if stderr.contains("already exists") {
-                debug!("Branch already exists locally, trying without -b flag");
-                log_messages.push(format!("Branch exists locally, retrying: git worktree add {} {}", path.display(), branch));
-                
-                let output = Command::new("git")
-                    .args([
-                        "worktree",
-                        "add",
-                        path.to_string_lossy().as_ref(),
-                        branch,
-                    ])
-                    .current_dir(self.repo.root())
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .output()
-                    .with_context(|| "Failed to run git worktree add (retry)")?;
-
-                let stdout2 = String::from_utf8_lossy(&output.stdout);
-                let stderr2 = String::from_utf8_lossy(&output.stderr);
-                
-                for line in stdout2.lines().chain(stderr2.lines()) {
-                    if !line.trim().is_empty() {
-                        log_messages.push(line.to_string());
-                    }
-                }
-
-                if !output.status.success() {
-                    log_messages.push(format!("ERROR: git worktree add failed (exit code: {})", output.status.code().unwrap_or(-1)));
-                    return Err(eyre!(
-                        "git worktree add failed: {}",
-                        String::from_utf8_lossy(&output.stderr)
-                    ));
-                }
-            } else {
-                log_messages.push(format!("ERROR: git worktree add failed (exit code: {})", output.status.code().unwrap_or(-1)));
-                return Err(eyre!("git worktree add failed: {}", stderr));
-            }
+            log_messages.push(format!("ERROR: git worktree add failed (exit code: {})", output.status.code().unwrap_or(-1)));
+            return Err(eyre!("git worktree add failed: {}", stderr));
         }
 
         // Verify the directory was actually created

@@ -359,9 +359,9 @@ impl Watcher {
         self.known_branches.values().collect()
     }
 
-    /// Add a log entry for fetch output
+    /// Add a log entry for fetch output (warnings/errors)
     pub fn add_fetch_log(&mut self, remote_name: &str, output: &str) {
-        let mut log = CommandLog::new(
+        let mut log = CommandLog::new_system(
             format!("fetch:{}", remote_name),
             format!("git fetch --prune {}", remote_name),
         );
@@ -369,6 +369,19 @@ impl Watcher {
         for line in output.lines() {
             log.add_output(CommandOutput::Stdout(line.to_string()));
         }
+        log.add_output(CommandOutput::Exit(0));
+        
+        self.command_logs.push(log);
+    }
+
+    /// Add a simple success log for fetch
+    pub fn add_fetch_success_log(&mut self, remote_name: &str) {
+        let mut log = CommandLog::new_system(
+            format!("fetch:{}", remote_name),
+            format!("git fetch --prune {}", remote_name),
+        );
+        
+        log.add_output(CommandOutput::Stdout("Fetch successful".to_string()));
         log.add_output(CommandOutput::Exit(0));
         
         self.command_logs.push(log);

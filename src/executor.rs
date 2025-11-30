@@ -170,10 +170,12 @@ pub struct CommandLog {
     pub is_running: bool,
     /// Final exit code (if completed)
     pub exit_code: Option<i32>,
+    /// Whether this is a system log (fetch, etc.) vs branch-specific command
+    pub is_system_log: bool,
 }
 
 impl CommandLog {
-    /// Create a new command log
+    /// Create a new command log (for branch-specific commands)
     pub fn new(branch: String, command: String) -> Self {
         Self {
             branch,
@@ -181,6 +183,19 @@ impl CommandLog {
             output: Vec::new(),
             is_running: true,
             exit_code: None,
+            is_system_log: false,
+        }
+    }
+
+    /// Create a new system log (for fetch, etc.)
+    pub fn new_system(name: String, command: String) -> Self {
+        Self {
+            branch: name,
+            command,
+            output: Vec::new(),
+            is_running: true,
+            exit_code: None,
+            is_system_log: true,
         }
     }
 

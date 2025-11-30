@@ -40,11 +40,18 @@ pub struct ScrollableLogsWidget<'a> {
     logs: &'a [CommandLog],
     theme: &'a Theme,
     state: &'a mut LogsState,
+    /// If true, only show system logs; if false, show all logs
+    system_only: bool,
 }
 
 impl<'a> ScrollableLogsWidget<'a> {
     pub fn new(logs: &'a [CommandLog], theme: &'a Theme, state: &'a mut LogsState) -> Self {
-        Self { logs, theme, state }
+        Self { logs, theme, state, system_only: true }
+    }
+
+    pub fn show_all(mut self) -> Self {
+        self.system_only = false;
+        self
     }
 
     fn render_log_owned(&self, log: &CommandLog, _inner_width: u16) -> Vec<Line<'static>> {
@@ -123,10 +130,11 @@ impl Widget for ScrollableLogsWidget<'_> {
 
         let inner_area = block.inner(area);
 
-        // Collect all lines
+        // Collect lines (optionally filtering to system logs only)
         let mut all_lines: Vec<Line> = Vec::new();
 
-        for log in self.logs.iter().rev() {
+        let logs_iter = self.logs.iter().rev().filter(|l| !self.system_only || l.is_system_log);
+        for log in logs_iter {
             if !all_lines.is_empty() {
                 all_lines.push(Line::raw("─".repeat(inner_area.width as usize)));
             }
