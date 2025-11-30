@@ -2,20 +2,22 @@
 
 use crossterm::event::KeyCode;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 
-use super::state::{SetupState, SetupStep};
 use super::App;
+use super::state::{SetupState, SetupStep};
 
 impl App {
     /// Render setup wizard
     pub(super) fn render_setup(&self, frame: &mut Frame, area: Rect) {
-        let Some(setup) = &self.setup_state else { return };
+        let Some(setup) = &self.setup_state else {
+            return;
+        };
 
         // Fill background
         frame.render_widget(
@@ -27,9 +29,9 @@ impl App {
             .direction(Direction::Vertical)
             .margin(2)
             .constraints([
-                Constraint::Length(3),  // Title
-                Constraint::Min(10),    // Content
-                Constraint::Length(3),  // Navigation
+                Constraint::Length(3), // Title
+                Constraint::Min(10),   // Content
+                Constraint::Length(3), // Navigation
             ])
             .split(area);
 
@@ -45,10 +47,24 @@ impl App {
         };
 
         let title = Paragraph::new(Line::from(vec![
-            Span::styled("Setup Wizard - ", Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
-            Span::styled(step_name, Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Setup Wizard - ",
+                Style::default()
+                    .fg(self.theme.primary)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                step_name,
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]))
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(self.theme.muted)));
+        .block(
+            Block::default()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::default().fg(self.theme.muted)),
+        );
         frame.render_widget(title, chunks[0]);
 
         // Content based on step
@@ -76,14 +92,21 @@ impl App {
             Span::styled("skip setup", Style::default().fg(self.theme.muted)),
         ]);
         frame.render_widget(
-            Paragraph::new(nav).block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(self.theme.muted))),
+            Paragraph::new(nav).block(
+                Block::default()
+                    .borders(Borders::TOP)
+                    .border_style(Style::default().fg(self.theme.muted)),
+            ),
             chunks[2],
         );
     }
 
     fn render_setup_remote(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let mut lines = vec![
-            Line::from(Span::styled("Select the remote repository to watch:", Style::default().fg(self.theme.fg))),
+            Line::from(Span::styled(
+                "Select the remote repository to watch:",
+                Style::default().fg(self.theme.fg),
+            )),
             Line::raw(""),
         ];
 
@@ -95,12 +118,22 @@ impl App {
         } else {
             for (i, remote) in setup.remotes.iter().enumerate() {
                 let style = if i == setup.selected_index {
-                    Style::default().fg(self.theme.bg).bg(self.theme.primary).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(self.theme.bg)
+                        .bg(self.theme.primary)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(self.theme.fg)
                 };
-                let prefix = if i == setup.selected_index { "▶ " } else { "  " };
-                lines.push(Line::from(Span::styled(format!("{}{}", prefix, remote), style)));
+                let prefix = if i == setup.selected_index {
+                    "▶ "
+                } else {
+                    "  "
+                };
+                lines.push(Line::from(Span::styled(
+                    format!("{}{}", prefix, remote),
+                    style,
+                )));
             }
         }
 
@@ -109,60 +142,110 @@ impl App {
 
     fn render_setup_poll_interval(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let lines = vec![
-            Line::from(Span::styled("How often should we check for new branches? (seconds)", Style::default().fg(self.theme.fg))),
+            Line::from(Span::styled(
+                "How often should we check for new branches? (seconds)",
+                Style::default().fg(self.theme.fg),
+            )),
             Line::raw(""),
             Line::from(vec![
                 Span::styled("Current: ", Style::default().fg(self.theme.muted)),
-                Span::styled(format!("{}", setup.poll_interval), Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{}", setup.poll_interval),
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(" seconds", Style::default().fg(self.theme.muted)),
             ]),
             Line::raw(""),
-            Line::from(Span::styled("Use ↑/↓ to adjust (5-300 seconds)", Style::default().fg(self.theme.muted))),
+            Line::from(Span::styled(
+                "Use ↑/↓ to adjust (5-300 seconds)",
+                Style::default().fg(self.theme.muted),
+            )),
         ];
         frame.render_widget(Paragraph::new(lines), area);
     }
 
     fn render_setup_worktree_dir(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let lines = vec![
-            Line::from(Span::styled("Where should worktrees be created?", Style::default().fg(self.theme.fg))),
-            Line::from(Span::styled("(relative to repository root)", Style::default().fg(self.theme.muted))),
+            Line::from(Span::styled(
+                "Where should worktrees be created?",
+                Style::default().fg(self.theme.fg),
+            )),
+            Line::from(Span::styled(
+                "(relative to repository root)",
+                Style::default().fg(self.theme.muted),
+            )),
             Line::raw(""),
             Line::from(vec![
                 Span::styled("Directory: ", Style::default().fg(self.theme.muted)),
-                Span::styled(&setup.worktree_base_dir, Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
-                Span::styled("_", Style::default().fg(self.theme.primary).add_modifier(Modifier::SLOW_BLINK)),
+                Span::styled(
+                    &setup.worktree_base_dir,
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "_",
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::SLOW_BLINK),
+                ),
             ]),
             Line::raw(""),
-            Line::from(Span::styled("Common options: '..' (parent dir), './worktrees'", Style::default().fg(self.theme.muted))),
+            Line::from(Span::styled(
+                "Common options: '..' (parent dir), './worktrees'",
+                Style::default().fg(self.theme.muted),
+            )),
         ];
         frame.render_widget(Paragraph::new(lines), area);
     }
 
     fn render_setup_base_branch(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let mut lines = vec![
-            Line::from(Span::styled("Select the base/main branch (optional):", Style::default().fg(self.theme.fg))),
+            Line::from(Span::styled(
+                "Select the base/main branch (optional):",
+                Style::default().fg(self.theme.fg),
+            )),
             Line::raw(""),
         ];
 
         // Option for "Auto" (auto-detect default branch)
         let auto_style = if setup.selected_index == 0 {
-            Style::default().fg(self.theme.bg).bg(self.theme.primary).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(self.theme.bg)
+                .bg(self.theme.primary)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(self.theme.muted)
         };
         lines.push(Line::from(Span::styled(
-            if setup.selected_index == 0 { "▶ (auto)" } else { "  (auto)" },
+            if setup.selected_index == 0 {
+                "▶ (auto)"
+            } else {
+                "  (auto)"
+            },
             auto_style,
         )));
 
         for (i, branch) in setup.branches.iter().enumerate() {
             let style = if i + 1 == setup.selected_index {
-                Style::default().fg(self.theme.bg).bg(self.theme.primary).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(self.theme.bg)
+                    .bg(self.theme.primary)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(self.theme.fg)
             };
-            let prefix = if i + 1 == setup.selected_index { "▶ " } else { "  " };
-            lines.push(Line::from(Span::styled(format!("{}{}", prefix, branch), style)));
+            let prefix = if i + 1 == setup.selected_index {
+                "▶ "
+            } else {
+                "  "
+            };
+            lines.push(Line::from(Span::styled(
+                format!("{}{}", prefix, branch),
+                style,
+            )));
         }
 
         frame.render_widget(Paragraph::new(lines), area);
@@ -171,41 +254,83 @@ impl App {
     fn render_setup_post_command(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let cmd_display = setup.post_create_command.as_deref().unwrap_or("");
         let lines = vec![
-            Line::from(Span::styled("Command to run after creating a worktree:", Style::default().fg(self.theme.fg))),
-            Line::from(Span::styled("(e.g., 'npm install', 'yarn', 'make setup')", Style::default().fg(self.theme.muted))),
+            Line::from(Span::styled(
+                "Command to run after creating a worktree:",
+                Style::default().fg(self.theme.fg),
+            )),
+            Line::from(Span::styled(
+                "(e.g., 'npm install', 'yarn', 'make setup')",
+                Style::default().fg(self.theme.muted),
+            )),
             Line::raw(""),
             Line::from(vec![
                 Span::styled("$ ", Style::default().fg(self.theme.muted)),
-                Span::styled(cmd_display, Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
-                Span::styled("_", Style::default().fg(self.theme.primary).add_modifier(Modifier::SLOW_BLINK)),
+                Span::styled(
+                    cmd_display,
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "_",
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::SLOW_BLINK),
+                ),
             ]),
             Line::raw(""),
-            Line::from(Span::styled("Leave empty to skip post-create commands", Style::default().fg(self.theme.muted))),
+            Line::from(Span::styled(
+                "Leave empty to skip post-create commands",
+                Style::default().fg(self.theme.muted),
+            )),
         ];
         frame.render_widget(Paragraph::new(lines), area);
     }
 
     fn render_setup_auto_create(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let lines = vec![
-            Line::from(Span::styled("Automatically create worktrees for new branches?", Style::default().fg(self.theme.fg))),
+            Line::from(Span::styled(
+                "Automatically create worktrees for new branches?",
+                Style::default().fg(self.theme.fg),
+            )),
             Line::raw(""),
             Line::from(vec![
-                Span::styled(if setup.selected_index == 0 { "▶ " } else { "  " }, Style::default().fg(self.theme.primary)),
+                Span::styled(
+                    if setup.selected_index == 0 {
+                        "▶ "
+                    } else {
+                        "  "
+                    },
+                    Style::default().fg(self.theme.primary),
+                ),
                 Span::styled(
                     "Yes - automatically create worktrees (can be changed later with 'a')",
                     if setup.selected_index == 0 {
-                        Style::default().fg(self.theme.bg).bg(self.theme.primary).add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .fg(self.theme.bg)
+                            .bg(self.theme.primary)
+                            .add_modifier(Modifier::BOLD)
                     } else {
                         Style::default().fg(self.theme.fg)
                     },
                 ),
             ]),
             Line::from(vec![
-                Span::styled(if setup.selected_index == 1 { "▶ " } else { "  " }, Style::default().fg(self.theme.primary)),
+                Span::styled(
+                    if setup.selected_index == 1 {
+                        "▶ "
+                    } else {
+                        "  "
+                    },
+                    Style::default().fg(self.theme.primary),
+                ),
                 Span::styled(
                     "No - manually select branches (recommended)",
                     if setup.selected_index == 1 {
-                        Style::default().fg(self.theme.bg).bg(self.theme.primary).add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .fg(self.theme.bg)
+                            .bg(self.theme.primary)
+                            .add_modifier(Modifier::BOLD)
                     } else {
                         Style::default().fg(self.theme.fg)
                     },
@@ -217,50 +342,87 @@ impl App {
 
     fn render_setup_confirm(&self, frame: &mut Frame, area: Rect, setup: &SetupState) {
         let lines = vec![
-            Line::from(Span::styled("Review your settings:", Style::default().fg(self.theme.fg).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Review your settings:",
+                Style::default()
+                    .fg(self.theme.fg)
+                    .add_modifier(Modifier::BOLD),
+            )),
             Line::raw(""),
             Line::from(vec![
-                Span::styled("  Remote:           ", Style::default().fg(self.theme.muted)),
-                Span::styled(&setup.remote_name, Style::default().fg(self.theme.secondary)),
+                Span::styled(
+                    "  Remote:           ",
+                    Style::default().fg(self.theme.muted),
+                ),
+                Span::styled(
+                    &setup.remote_name,
+                    Style::default().fg(self.theme.secondary),
+                ),
             ]),
             Line::from(vec![
-                Span::styled("  Poll interval:    ", Style::default().fg(self.theme.muted)),
-                Span::styled(format!("{}s", setup.poll_interval), Style::default().fg(self.theme.secondary)),
+                Span::styled(
+                    "  Poll interval:    ",
+                    Style::default().fg(self.theme.muted),
+                ),
+                Span::styled(
+                    format!("{}s", setup.poll_interval),
+                    Style::default().fg(self.theme.secondary),
+                ),
             ]),
             Line::from(vec![
-                Span::styled("  Worktree dir:     ", Style::default().fg(self.theme.muted)),
-                Span::styled(&setup.worktree_base_dir, Style::default().fg(self.theme.secondary)),
+                Span::styled(
+                    "  Worktree dir:     ",
+                    Style::default().fg(self.theme.muted),
+                ),
+                Span::styled(
+                    &setup.worktree_base_dir,
+                    Style::default().fg(self.theme.secondary),
+                ),
             ]),
             Line::from(vec![
-                Span::styled("  Base branch:      ", Style::default().fg(self.theme.muted)),
+                Span::styled(
+                    "  Base branch:      ",
+                    Style::default().fg(self.theme.muted),
+                ),
                 Span::styled(
                     setup.base_branch.as_deref().unwrap_or("(auto)"),
                     Style::default().fg(self.theme.secondary),
                 ),
             ]),
             Line::from(vec![
-                Span::styled("  Post-create cmd:  ", Style::default().fg(self.theme.muted)),
+                Span::styled(
+                    "  Post-create cmd:  ",
+                    Style::default().fg(self.theme.muted),
+                ),
                 Span::styled(
                     setup.post_create_command.as_deref().unwrap_or("(none)"),
                     Style::default().fg(self.theme.secondary),
                 ),
             ]),
             Line::from(vec![
-                Span::styled("  Auto-create:      ", Style::default().fg(self.theme.muted)),
+                Span::styled(
+                    "  Auto-create:      ",
+                    Style::default().fg(self.theme.muted),
+                ),
                 Span::styled(
                     if setup.auto_create { "Yes" } else { "No" },
                     Style::default().fg(self.theme.secondary),
                 ),
             ]),
             Line::raw(""),
-            Line::from(Span::styled("Press Enter to save and continue, or go back to modify.", Style::default().fg(self.theme.muted))),
+            Line::from(Span::styled(
+                "Press Enter to save and continue, or go back to modify.",
+                Style::default().fg(self.theme.muted),
+            )),
         ];
         frame.render_widget(Paragraph::new(lines), area);
     }
 
     /// Handle setup wizard keys
     pub(super) fn handle_setup_keys(&mut self, key: crossterm::event::KeyEvent) {
-        let Some(setup) = self.setup_state.as_mut() else { return };
+        let Some(setup) = self.setup_state.as_mut() else {
+            return;
+        };
 
         match key.code {
             KeyCode::Esc => {
@@ -282,29 +444,27 @@ impl App {
                     self.setup_next_step();
                 }
             }
-            KeyCode::Up | KeyCode::Char('k') => {
-                match setup.step {
-                    SetupStep::Remote => {
-                        if setup.selected_index > 0 {
-                            setup.selected_index -= 1;
-                        }
+            KeyCode::Up | KeyCode::Char('k') => match setup.step {
+                SetupStep::Remote => {
+                    if setup.selected_index > 0 {
+                        setup.selected_index -= 1;
                     }
-                    SetupStep::PollInterval => {
-                        if setup.poll_interval < 300 {
-                            setup.poll_interval += 5;
-                        }
-                    }
-                    SetupStep::BaseBranch => {
-                        if setup.selected_index > 0 {
-                            setup.selected_index -= 1;
-                        }
-                    }
-                    SetupStep::AutoCreate => {
-                        setup.selected_index = if setup.selected_index == 0 { 1 } else { 0 };
-                    }
-                    _ => {}
                 }
-            }
+                SetupStep::PollInterval => {
+                    if setup.poll_interval < 300 {
+                        setup.poll_interval += 5;
+                    }
+                }
+                SetupStep::BaseBranch => {
+                    if setup.selected_index > 0 {
+                        setup.selected_index -= 1;
+                    }
+                }
+                SetupStep::AutoCreate => {
+                    setup.selected_index = if setup.selected_index == 0 { 1 } else { 0 };
+                }
+                _ => {}
+            },
             KeyCode::Down | KeyCode::Char('j') => {
                 match setup.step {
                     SetupStep::Remote => {
@@ -329,40 +489,38 @@ impl App {
                     _ => {}
                 }
             }
-            KeyCode::Char(c) => {
-                match setup.step {
-                    SetupStep::WorktreeBaseDir => {
-                        setup.worktree_base_dir.push(c);
-                    }
-                    SetupStep::PostCreateCommand => {
-                        let cmd = setup.post_create_command.get_or_insert_with(String::new);
-                        cmd.push(c);
-                    }
-                    _ => {}
+            KeyCode::Char(c) => match setup.step {
+                SetupStep::WorktreeBaseDir => {
+                    setup.worktree_base_dir.push(c);
                 }
-            }
-            KeyCode::Backspace => {
-                match setup.step {
-                    SetupStep::WorktreeBaseDir => {
-                        setup.worktree_base_dir.pop();
-                    }
-                    SetupStep::PostCreateCommand => {
-                        if let Some(ref mut cmd) = setup.post_create_command {
-                            cmd.pop();
-                            if cmd.is_empty() {
-                                setup.post_create_command = None;
-                            }
+                SetupStep::PostCreateCommand => {
+                    let cmd = setup.post_create_command.get_or_insert_with(String::new);
+                    cmd.push(c);
+                }
+                _ => {}
+            },
+            KeyCode::Backspace => match setup.step {
+                SetupStep::WorktreeBaseDir => {
+                    setup.worktree_base_dir.pop();
+                }
+                SetupStep::PostCreateCommand => {
+                    if let Some(ref mut cmd) = setup.post_create_command {
+                        cmd.pop();
+                        if cmd.is_empty() {
+                            setup.post_create_command = None;
                         }
                     }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
     }
 
     pub(super) fn setup_next_step(&mut self) {
-        let Some(setup) = self.setup_state.as_mut() else { return };
+        let Some(setup) = self.setup_state.as_mut() else {
+            return;
+        };
 
         match setup.step {
             SetupStep::Remote => {
@@ -418,12 +576,18 @@ impl App {
     }
 
     pub(super) fn setup_prev_step(&mut self) {
-        let Some(setup) = self.setup_state.as_mut() else { return };
+        let Some(setup) = self.setup_state.as_mut() else {
+            return;
+        };
 
         match setup.step {
             SetupStep::Remote => {} // Can't go back
             SetupStep::PollInterval => {
-                setup.selected_index = setup.remotes.iter().position(|r| r == &setup.remote_name).unwrap_or(0);
+                setup.selected_index = setup
+                    .remotes
+                    .iter()
+                    .position(|r| r == &setup.remote_name)
+                    .unwrap_or(0);
                 setup.step = SetupStep::Remote;
             }
             SetupStep::WorktreeBaseDir => {
@@ -433,8 +597,15 @@ impl App {
                 setup.step = SetupStep::WorktreeBaseDir;
             }
             SetupStep::PostCreateCommand => {
-                setup.selected_index = if setup.base_branch.is_none() { 0 } else {
-                    setup.branches.iter().position(|b| Some(b) == setup.base_branch.as_ref()).map(|i| i + 1).unwrap_or(0)
+                setup.selected_index = if setup.base_branch.is_none() {
+                    0
+                } else {
+                    setup
+                        .branches
+                        .iter()
+                        .position(|b| Some(b) == setup.base_branch.as_ref())
+                        .map(|i| i + 1)
+                        .unwrap_or(0)
                 };
                 setup.step = SetupStep::BaseBranch;
             }
@@ -449,7 +620,9 @@ impl App {
     }
 
     pub(super) fn finish_setup(&mut self) {
-        let Some(setup) = self.setup_state.take() else { return };
+        let Some(setup) = self.setup_state.take() else {
+            return;
+        };
 
         // Apply settings to config
         self.config.remote_name = setup.remote_name;
@@ -490,4 +663,3 @@ impl App {
         self.update_branch_list();
     }
 }
-

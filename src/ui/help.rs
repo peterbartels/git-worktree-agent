@@ -66,25 +66,45 @@ impl Widget for HelpWidget<'_> {
         block.render(popup_area, buf);
 
         let lines = vec![
-            Line::from(Span::styled(" Navigation", Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                " Navigation",
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            )),
             self.render_keybinding("↑ / ↓", "Navigate branches"),
             self.render_keybinding("j / k", "Scroll command log"),
             self.render_keybinding("Mouse wheel", "Scroll command log"),
             Line::raw(""),
-            Line::from(Span::styled(" Actions", Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                " Actions",
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            )),
             self.render_keybinding("Enter", "Create worktree for branch"),
             self.render_keybinding("d", "Delete/untrack worktree"),
             self.render_keybinding("t", "Toggle track/untrack branch"),
             self.render_keybinding("r", "Refresh (fetch from remote)"),
             self.render_keybinding("a", "Toggle auto-create mode"),
             Line::raw(""),
-            Line::from(Span::styled(" Views", Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                " Views",
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            )),
             self.render_keybinding("l", "Full-screen logs"),
             self.render_keybinding("s", "Settings"),
             self.render_keybinding("?", "Toggle this help"),
             self.render_keybinding("q / Esc", "Quit"),
             Line::raw(""),
-            Line::from(Span::styled(" Mouse", Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                " Mouse",
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            )),
             self.render_keybinding("Shift+drag", "Select text"),
         ];
 
@@ -92,4 +112,3 @@ impl Widget for HelpWidget<'_> {
         paragraph.render(inner, buf);
     }
 }
-

@@ -43,9 +43,7 @@ impl Repository {
             ));
         }
 
-        let root = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .to_string();
+        let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let root = PathBuf::from(root);
 
         debug!("Discovered git repository at: {}", root.display());
@@ -154,7 +152,11 @@ impl Repository {
             }
         }
 
-        debug!("Found {} remote branches for {}", branches.len(), remote_name);
+        debug!(
+            "Found {} remote branches for {}",
+            branches.len(),
+            remote_name
+        );
         Ok(branches)
     }
 
@@ -162,7 +164,10 @@ impl Repository {
     pub fn get_default_branch(&self, remote_name: &str) -> Option<String> {
         // Try to get the remote's HEAD reference
         let output = Command::new("git")
-            .args(["symbolic-ref", &format!("refs/remotes/{}/HEAD", remote_name)])
+            .args([
+                "symbolic-ref",
+                &format!("refs/remotes/{}/HEAD", remote_name),
+            ])
             .current_dir(&self.root)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -189,10 +194,13 @@ impl Repository {
         if output.status.success() {
             let branches = String::from_utf8_lossy(&output.stdout);
             let common_defaults = ["main", "master", "develop", "dev"];
-            
+
             for default in common_defaults {
                 let pattern = format!("{}/{}", remote_name, default);
-                if branches.lines().any(|line| line.trim().trim_start_matches("* ") == pattern) {
+                if branches
+                    .lines()
+                    .any(|line| line.trim().trim_start_matches("* ") == pattern)
+                {
                     return Some(default.to_string());
                 }
             }

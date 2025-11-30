@@ -10,4 +10,3 @@ mod worktree;
 
 pub use repository::*;
 pub use worktree::*;
-

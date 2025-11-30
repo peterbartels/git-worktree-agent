@@ -86,9 +86,7 @@ impl<'a> WorktreeManager<'a> {
                     current.head = head.to_string();
                 } else if let Some(branch) = line.strip_prefix("branch ") {
                     // Strip refs/heads/ prefix
-                    let branch_name = branch
-                        .strip_prefix("refs/heads/")
-                        .unwrap_or(branch);
+                    let branch_name = branch.strip_prefix("refs/heads/").unwrap_or(branch);
                     current.branch = Some(branch_name.to_string());
                 } else if line == "bare" {
                     current.is_main = true;
@@ -120,22 +118,27 @@ impl<'a> WorktreeManager<'a> {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
-        
+
         output.map(|s| s.success()).unwrap_or(false)
     }
 
     /// Create a new worktree for a branch
     /// Returns (success, output_messages) where output_messages contains git output for logging
     pub fn create(&self, branch: &str, path: &Path, remote: &str) -> Result<Vec<String>> {
-        info!("Creating worktree for branch '{}' at: {}", branch, path.display());
+        info!(
+            "Creating worktree for branch '{}' at: {}",
+            branch,
+            path.display()
+        );
 
         let mut log_messages = Vec::new();
         log_messages.push(format!("Creating worktree at: {}", path.display()));
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create parent directory: {}", parent.display())
+            })?;
         }
 
         // Check if worktree already exists
@@ -145,18 +148,13 @@ impl<'a> WorktreeManager<'a> {
 
         // Check if branch exists locally to determine the right command
         let branch_exists_locally = self.local_branch_exists(branch);
-        
+
         let output = if branch_exists_locally {
             // Branch exists locally - just create worktree using existing branch
             log_messages.push(format!("$ git worktree add {} {}", path.display(), branch));
-            
+
             Command::new("git")
-                .args([
-                    "worktree",
-                    "add",
-                    path.to_string_lossy().as_ref(),
-                    branch,
-                ])
+                .args(["worktree", "add", path.to_string_lossy().as_ref(), branch])
                 .current_dir(self.repo.root())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -165,8 +163,13 @@ impl<'a> WorktreeManager<'a> {
         } else {
             // Branch doesn't exist locally - create it tracking remote
             let remote_ref = format!("{}/{}", remote, branch);
-            log_messages.push(format!("$ git worktree add --track -b {} {} {}", branch, path.display(), remote_ref));
-            
+            log_messages.push(format!(
+                "$ git worktree add --track -b {} {} {}",
+                branch,
+                path.display(),
+                remote_ref
+            ));
+
             Command::new("git")
                 .args([
                     "worktree",
@@ -187,7 +190,7 @@ impl<'a> WorktreeManager<'a> {
         // Capture all output
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        
+
         for line in stdout.lines().chain(stderr.lines()) {
             if !line.trim().is_empty() {
                 log_messages.push(line.to_string());
@@ -195,17 +198,29 @@ impl<'a> WorktreeManager<'a> {
         }
 
         if !output.status.success() {
-            log_messages.push(format!("ERROR: git worktree add failed (exit code: {})", output.status.code().unwrap_or(-1)));
+            log_messages.push(format!(
+                "ERROR: git worktree add failed (exit code: {})",
+                output.status.code().unwrap_or(-1)
+            ));
             return Err(eyre!("git worktree add failed: {}", stderr));
         }
 
         // Verify the directory was actually created
         if !path.exists() {
-            log_messages.push(format!("ERROR: Directory was not created at {}", path.display()));
-            return Err(eyre!("Worktree directory was not created: {}", path.display()));
+            log_messages.push(format!(
+                "ERROR: Directory was not created at {}",
+                path.display()
+            ));
+            return Err(eyre!(
+                "Worktree directory was not created: {}",
+                path.display()
+            ));
         }
 
-        log_messages.push(format!("✓ Worktree created successfully at: {}", path.display()));
+        log_messages.push(format!(
+            "✓ Worktree created successfully at: {}",
+            path.display()
+        ));
         info!("Successfully created worktree at: {}", path.display());
         Ok(log_messages)
     }
@@ -265,7 +280,9 @@ impl<'a> WorktreeManager<'a> {
     /// Check if a worktree exists for a branch
     pub fn has_worktree_for_branch(&self, branch: &str) -> Result<bool> {
         let worktrees = self.list()?;
-        Ok(worktrees.iter().any(|w| w.branch.as_deref() == Some(branch)))
+        Ok(worktrees
+            .iter()
+            .any(|w| w.branch.as_deref() == Some(branch)))
     }
 
     /// Get worktree path for a branch (if exists)
@@ -297,11 +314,10 @@ branch refs/heads/feature/my-feature
         if let Ok(repo) = repo {
             let manager = WorktreeManager::new(&repo);
             let worktrees = manager.parse_worktree_list(output).unwrap();
-            
+
             assert_eq!(worktrees.len(), 2);
             assert_eq!(worktrees[0].branch.as_deref(), Some("main"));
             assert_eq!(worktrees[1].branch.as_deref(), Some("feature/my-feature"));
         }
     }
 }
-

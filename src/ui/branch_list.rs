@@ -105,7 +105,7 @@ impl BranchListState {
                 return;
             }
         }
-        
+
         // Fallback: select first item if nothing selected
         if self.list_state.selected().is_none() && !self.items.is_empty() {
             self.list_state.select(Some(0));
@@ -132,34 +132,13 @@ impl<'a> BranchListWidget<'a> {
 
     fn status_indicator(&self, status: &BranchStatus) -> (&str, Style) {
         match status {
-            BranchStatus::Remote => (
-                "○",
-                Style::default().fg(self.theme.muted),
-            ),
-            BranchStatus::LocalActive => (
-                "●",
-                Style::default().fg(self.theme.success),
-            ),
-            BranchStatus::LocalPrunable => (
-                "◐",
-                Style::default().fg(self.theme.warning),
-            ),
-            BranchStatus::Queued => (
-                "◷",
-                Style::default().fg(self.theme.warning),
-            ),
-            BranchStatus::Creating => (
-                "◔",
-                Style::default().fg(self.theme.primary),
-            ),
-            BranchStatus::RunningHook => (
-                "⟳",
-                Style::default().fg(self.theme.secondary),
-            ),
-            BranchStatus::Untracked => (
-                "○",
-                Style::default().fg(self.theme.muted),
-            ),
+            BranchStatus::Remote => ("○", Style::default().fg(self.theme.muted)),
+            BranchStatus::LocalActive => ("●", Style::default().fg(self.theme.success)),
+            BranchStatus::LocalPrunable => ("◐", Style::default().fg(self.theme.warning)),
+            BranchStatus::Queued => ("◷", Style::default().fg(self.theme.warning)),
+            BranchStatus::Creating => ("◔", Style::default().fg(self.theme.primary)),
+            BranchStatus::RunningHook => ("⟳", Style::default().fg(self.theme.secondary)),
+            BranchStatus::Untracked => ("○", Style::default().fg(self.theme.muted)),
         }
     }
 }
@@ -195,9 +174,10 @@ impl StatefulWidget for BranchListWidget<'_> {
                     BranchStatus::Creating => {
                         Span::styled(" ⟳ creating...", Style::default().fg(self.theme.primary))
                     }
-                    BranchStatus::RunningHook => {
-                        Span::styled(" ⟳ running hook...", Style::default().fg(self.theme.secondary))
-                    }
+                    BranchStatus::RunningHook => Span::styled(
+                        " ⟳ running hook...",
+                        Style::default().fg(self.theme.secondary),
+                    ),
                     BranchStatus::LocalPrunable => {
                         Span::styled(" (prunable)", Style::default().fg(self.theme.warning))
                     }
@@ -239,4 +219,3 @@ impl StatefulWidget for BranchListWidget<'_> {
         StatefulWidget::render(list, area, buf, &mut state.list_state);
     }
 }
-

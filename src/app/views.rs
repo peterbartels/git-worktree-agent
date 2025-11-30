@@ -1,17 +1,15 @@
 //! View rendering functions
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use super::App;
-use crate::ui::{
-    BranchListWidget, BranchLogWidget, ScrollableLogsWidget, StatusWidget,
-};
+use crate::ui::{BranchListWidget, BranchLogWidget, ScrollableLogsWidget, StatusWidget};
 
 impl App {
     /// Render the main view
@@ -20,10 +18,10 @@ impl App {
         let main_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Status bar
-                Constraint::Min(10),    // Split view (branches + command log)
-                Constraint::Length(6),  // Bottom logs (reduced)
-                Constraint::Length(1),  // Keybindings hint
+                Constraint::Length(3), // Status bar
+                Constraint::Min(10),   // Split view (branches + command log)
+                Constraint::Length(6), // Bottom logs (reduced)
+                Constraint::Length(1), // Keybindings hint
             ])
             .split(area);
 
@@ -34,8 +32,8 @@ impl App {
         let split_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(25),  // Branch list
-                Constraint::Percentage(75),  // Branch command log
+                Constraint::Percentage(25), // Branch list
+                Constraint::Percentage(75), // Branch command log
             ])
             .split(main_chunks[1]);
 
@@ -60,7 +58,11 @@ impl App {
 
         // Bottom logs (general git output)
         frame.render_widget(
-            ScrollableLogsWidget::new(&self.watcher.command_logs, &self.theme, &mut self.logs_state),
+            ScrollableLogsWidget::new(
+                &self.watcher.command_logs,
+                &self.theme,
+                &mut self.logs_state,
+            ),
             main_chunks[2],
         );
 
@@ -89,8 +91,12 @@ impl App {
     /// Render full-screen logs view
     pub(super) fn render_logs_fullscreen(&mut self, frame: &mut Frame, area: Rect) {
         frame.render_widget(
-            ScrollableLogsWidget::new(&self.watcher.command_logs, &self.theme, &mut self.logs_state)
-                .show_all(),
+            ScrollableLogsWidget::new(
+                &self.watcher.command_logs,
+                &self.theme,
+                &mut self.logs_state,
+            )
+            .show_all(),
             area,
         );
     }
@@ -128,7 +134,7 @@ impl App {
 
         // Split error message into lines
         let mut lines: Vec<Line> = vec![Line::raw("")];
-        
+
         for line in error_msg.lines() {
             lines.push(Line::from(Span::styled(
                 line.to_string(),
@@ -140,9 +146,19 @@ impl App {
         lines.push(Line::raw(""));
         lines.push(Line::from(vec![
             Span::styled("Press ", Style::default().fg(self.theme.muted)),
-            Span::styled("q", Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "q",
+                Style::default()
+                    .fg(self.theme.primary)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" or ", Style::default().fg(self.theme.muted)),
-            Span::styled("Esc", Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Esc",
+                Style::default()
+                    .fg(self.theme.primary)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" to exit", Style::default().fg(self.theme.muted)),
         ]));
 
@@ -151,7 +167,13 @@ impl App {
     }
 
     /// Render delete confirmation dialog
-    pub(super) fn render_delete_confirm(&self, frame: &mut Frame, area: Rect, branch: String, input: String) {
+    pub(super) fn render_delete_confirm(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        branch: String,
+        input: String,
+    ) {
         // Center the popup
         let popup_width = 60.min(area.width.saturating_sub(4));
         let popup_height = 10;
@@ -186,7 +208,12 @@ impl App {
             Line::raw(""),
             Line::from(vec![
                 Span::raw("Delete worktree for branch "),
-                Span::styled(&branch, Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &branch,
+                    Style::default()
+                        .fg(self.theme.secondary)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::raw("?"),
             ]),
             Line::raw(""),
@@ -197,9 +224,19 @@ impl App {
             Line::raw(""),
             Line::from(vec![
                 Span::raw("Type "),
-                Span::styled("yes", Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "yes",
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::raw(" to confirm: "),
-                Span::styled(&input, Style::default().fg(self.theme.fg).add_modifier(Modifier::UNDERLINED)),
+                Span::styled(
+                    &input,
+                    Style::default()
+                        .fg(self.theme.fg)
+                        .add_modifier(Modifier::UNDERLINED),
+                ),
                 Span::styled("█", Style::default().fg(self.theme.primary)),
             ]),
         ];
@@ -208,4 +245,3 @@ impl App {
         frame.render_widget(paragraph, inner);
     }
 }
-

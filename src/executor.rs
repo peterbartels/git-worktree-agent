@@ -227,8 +227,11 @@ impl CommandLog {
         } else if self.succeeded() {
             format!("✓ {}", self.command)
         } else {
-            format!("✗ {} (exit code: {})", self.command, self.exit_code.unwrap_or(-1))
+            format!(
+                "✗ {} (exit code: {})",
+                self.command,
+                self.exit_code.unwrap_or(-1)
+            )
         }
     }
 }
-

@@ -2,8 +2,8 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 
-use super::state::ViewMode;
 use super::App;
+use super::state::ViewMode;
 
 impl App {
     /// Handle key events
@@ -34,17 +34,15 @@ impl App {
                     _ => {}
                 }
             }
-            MouseEventKind::ScrollDown => {
-                match &self.view_mode {
-                    ViewMode::Main => {
-                        self.branch_logs_state.scroll_down();
-                    }
-                    ViewMode::Logs => {
-                        self.logs_state.scroll_down();
-                    }
-                    _ => {}
+            MouseEventKind::ScrollDown => match &self.view_mode {
+                ViewMode::Main => {
+                    self.branch_logs_state.scroll_down();
                 }
-            }
+                ViewMode::Logs => {
+                    self.logs_state.scroll_down();
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -80,10 +78,14 @@ impl App {
                 self.branch_logs_state.scroll_up();
             }
             (_, KeyCode::PageDown) => {
-                for _ in 0..5 { self.branch_logs_state.scroll_down(); }
+                for _ in 0..5 {
+                    self.branch_logs_state.scroll_down();
+                }
             }
             (_, KeyCode::PageUp) => {
-                for _ in 0..5 { self.branch_logs_state.scroll_up(); }
+                for _ in 0..5 {
+                    self.branch_logs_state.scroll_up();
+                }
             }
             (_, KeyCode::Enter) => {
                 self.create_selected_worktree();
@@ -181,4 +183,3 @@ impl App {
         }
     }
 }
-

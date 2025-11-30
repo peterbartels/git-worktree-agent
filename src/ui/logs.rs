@@ -5,7 +5,10 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget},
+    widgets::{
+        Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget,
+        Widget,
+    },
 };
 
 use crate::executor::{CommandLog, CommandOutput};
@@ -46,7 +49,12 @@ pub struct ScrollableLogsWidget<'a> {
 
 impl<'a> ScrollableLogsWidget<'a> {
     pub fn new(logs: &'a [CommandLog], theme: &'a Theme, state: &'a mut LogsState) -> Self {
-        Self { logs, theme, state, system_only: true }
+        Self {
+            logs,
+            theme,
+            state,
+            system_only: true,
+        }
     }
 
     pub fn show_all(mut self) -> Self {
@@ -106,7 +114,10 @@ impl<'a> ScrollableLogsWidget<'a> {
                 CommandOutput::Error(msg) => {
                     lines.push(Line::from(vec![
                         Span::raw("  "),
-                        Span::styled(format!("Error: {}", msg), Style::default().fg(self.theme.error)),
+                        Span::styled(
+                            format!("Error: {}", msg),
+                            Style::default().fg(self.theme.error),
+                        ),
                     ]));
                 }
             }
@@ -133,7 +144,11 @@ impl Widget for ScrollableLogsWidget<'_> {
         // Collect lines (optionally filtering to system logs only)
         let mut all_lines: Vec<Line> = Vec::new();
 
-        let logs_iter = self.logs.iter().rev().filter(|l| !self.system_only || l.is_system_log);
+        let logs_iter = self
+            .logs
+            .iter()
+            .rev()
+            .filter(|l| !self.system_only || l.is_system_log);
         for log in logs_iter {
             if !all_lines.is_empty() {
                 all_lines.push(Line::raw("─".repeat(inner_area.width as usize)));
@@ -186,8 +201,18 @@ pub struct BranchLogWidget<'a> {
 }
 
 impl<'a> BranchLogWidget<'a> {
-    pub fn new(logs: &'a [CommandLog], branch: Option<&'a str>, theme: &'a Theme, state: &'a mut LogsState) -> Self {
-        Self { logs, branch, theme, state }
+    pub fn new(
+        logs: &'a [CommandLog],
+        branch: Option<&'a str>,
+        theme: &'a Theme,
+        state: &'a mut LogsState,
+    ) -> Self {
+        Self {
+            logs,
+            branch,
+            theme,
+            state,
+        }
     }
 
     fn render_log_detail(&self, log: &CommandLog) -> Vec<Line<'static>> {
@@ -205,17 +230,28 @@ impl<'a> BranchLogWidget<'a> {
         lines.push(Line::from(vec![
             status_icon,
             Span::styled("$ ", Style::default().fg(self.theme.muted)),
-            Span::styled(log.command.clone(), Style::default().fg(self.theme.fg).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                log.command.clone(),
+                Style::default()
+                    .fg(self.theme.fg)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
 
         // All output lines
         for output in &log.output {
             match output {
                 CommandOutput::Stdout(line) => {
-                    lines.push(Line::from(Span::styled(line.clone(), Style::default().fg(self.theme.fg))));
+                    lines.push(Line::from(Span::styled(
+                        line.clone(),
+                        Style::default().fg(self.theme.fg),
+                    )));
                 }
                 CommandOutput::Stderr(line) => {
-                    lines.push(Line::from(Span::styled(line.clone(), Style::default().fg(self.theme.warning))));
+                    lines.push(Line::from(Span::styled(
+                        line.clone(),
+                        Style::default().fg(self.theme.warning),
+                    )));
                 }
                 CommandOutput::Exit(code) => {
                     let style = if *code == 0 {
@@ -226,7 +262,10 @@ impl<'a> BranchLogWidget<'a> {
                     lines.push(Line::from(Span::styled(format!("Exit: {}", code), style)));
                 }
                 CommandOutput::Error(msg) => {
-                    lines.push(Line::from(Span::styled(format!("Error: {}", msg), Style::default().fg(self.theme.error))));
+                    lines.push(Line::from(Span::styled(
+                        format!("Error: {}", msg),
+                        Style::default().fg(self.theme.error),
+                    )));
                 }
             }
         }
@@ -326,4 +365,3 @@ impl Widget for BranchLogWidget<'_> {
         }
     }
 }
-

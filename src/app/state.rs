@@ -150,4 +150,3 @@ impl Default for SettingsState {
         Self::new()
     }
 }
-

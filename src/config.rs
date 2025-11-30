@@ -95,10 +95,7 @@ impl Default for Config {
             poll_interval_secs: default_poll_interval(),
             post_create_command: None,
             command_working_dir: None,
-            ignore_patterns: vec![
-                "dependabot/*".to_string(),
-                "renovate/*".to_string(),
-            ],
+            ignore_patterns: vec!["dependabot/*".to_string(), "renovate/*".to_string()],
             tracked_branches: HashSet::new(),
             untracked_branches: HashSet::new(),
             auto_create_worktrees: default_auto_create(),
@@ -152,11 +149,13 @@ impl Config {
         let config_path = repo_root.join(CONFIG_FILE_NAME);
 
         if config_path.exists() {
-            let content = std::fs::read_to_string(&config_path)
-                .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
+            let content = std::fs::read_to_string(&config_path).with_context(|| {
+                format!("Failed to read config file: {}", config_path.display())
+            })?;
 
-            let config: Config = serde_json::from_str(&content)
-                .with_context(|| format!("Failed to parse config file: {}", config_path.display()))?;
+            let config: Config = serde_json::from_str(&content).with_context(|| {
+                format!("Failed to parse config file: {}", config_path.display())
+            })?;
 
             Ok(config)
         } else {
@@ -168,8 +167,8 @@ impl Config {
     pub fn save(&self, repo_root: &Path) -> Result<()> {
         let config_path = repo_root.join(CONFIG_FILE_NAME);
 
-        let content = serde_json::to_string_pretty(self)
-            .with_context(|| "Failed to serialize config")?;
+        let content =
+            serde_json::to_string_pretty(self).with_context(|| "Failed to serialize config")?;
 
         std::fs::write(&config_path, content)
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
@@ -264,7 +263,10 @@ mod tests {
 
     #[test]
     fn test_sanitize_branch_name() {
-        assert_eq!(sanitize_branch_name("feature/my-branch"), "feature-my-branch");
+        assert_eq!(
+            sanitize_branch_name("feature/my-branch"),
+            "feature-my-branch"
+        );
         assert_eq!(sanitize_branch_name("fix:bug"), "fix-bug");
     }
 
@@ -279,4 +281,3 @@ mod tests {
         assert!(!config.should_ignore_branch("develop"));
     }
 }
-

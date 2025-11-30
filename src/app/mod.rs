@@ -16,14 +16,12 @@ use ratatui::{DefaultTerminal, Frame};
 
 use crate::config::Config;
 use crate::git::{Repository, WorktreeManager};
-use crate::ui::{
-    BranchListState, HelpWidget, LogsState, AppStatus, Theme,
-};
+use crate::ui::{AppStatus, BranchListState, HelpWidget, LogsState, Theme};
 use crate::watcher::{Watcher, WatcherEvent};
 
 pub use state::ViewMode;
 
-use state::{SetupState, SettingsState};
+use state::{SettingsState, SetupState};
 
 /// Main application state
 pub struct App {
@@ -63,11 +61,11 @@ impl App {
     /// Create a new application
     pub fn new(repo_path: &std::path::Path) -> Result<Self> {
         let repo = Repository::discover(repo_path)?;
-        
+
         // Check if config file exists (first run detection)
         let config_path = repo.root().join(crate::config::CONFIG_FILE_NAME);
         let is_first_run = !config_path.exists();
-        
+
         let config = Config::load(repo.root())?;
 
         let (event_tx, event_rx) = mpsc::channel();
@@ -94,7 +92,7 @@ impl App {
         let (initial_view_mode, setup_state) = if is_first_run {
             // First run - start setup wizard
             let mut setup = SetupState::new();
-            
+
             // Get available remotes
             setup.remotes = repo.get_remotes().unwrap_or_default();
             if !setup.remotes.is_empty() {
@@ -106,7 +104,7 @@ impl App {
                     setup.remote_name = setup.remotes[0].clone();
                 }
             }
-            
+
             (ViewMode::Setup, Some(setup))
         } else if let Err(err_msg) = repo.validate_remote(&config.remote_name) {
             // Remote doesn't exist - show error
@@ -145,25 +143,27 @@ impl App {
     /// Removes worktrees from config that no longer exist in git
     fn sync_worktrees_with_git(&mut self) {
         let manager = WorktreeManager::new(&self.repo);
-        
+
         if let Ok(git_worktrees) = manager.list() {
             // Get the set of branches that have actual worktrees
             let existing_branches: std::collections::HashSet<String> = git_worktrees
                 .iter()
                 .filter_map(|wt| wt.branch.clone())
                 .collect();
-            
+
             // Remove worktrees from config that don't exist in git anymore
-            let removed: Vec<String> = self.config.worktrees
+            let removed: Vec<String> = self
+                .config
+                .worktrees
                 .iter()
                 .filter(|wt| !existing_branches.contains(&wt.branch))
                 .map(|wt| wt.branch.clone())
                 .collect();
-            
+
             for branch in &removed {
                 self.config.remove_worktree(branch);
             }
-            
+
             // Save if we removed anything
             if !removed.is_empty() {
                 let _ = self.config.save(self.repo.root());
@@ -239,4 +239,3 @@ impl App {
         }
     }
 }
-

@@ -2,8 +2,8 @@
 
 use tracing::{debug, error, info};
 
-use super::state::ViewMode;
 use super::App;
+use super::state::ViewMode;
 use crate::config::HookStatus;
 use crate::git::WorktreeManager;
 use crate::ui::BranchStatus;
@@ -14,7 +14,7 @@ impl App {
     pub(super) fn update_branch_list(&mut self) {
         // First sync config with actual git state
         self.sync_worktrees_with_git();
-        
+
         let manager = WorktreeManager::new(&self.repo);
         let worktrees = manager.list().unwrap_or_default();
 
@@ -69,8 +69,14 @@ impl App {
 
         // Sort: active worktrees first, then by name
         items.sort_by(|a, b| {
-            let a_active = matches!(a.status, BranchStatus::LocalActive | BranchStatus::LocalPrunable);
-            let b_active = matches!(b.status, BranchStatus::LocalActive | BranchStatus::LocalPrunable);
+            let a_active = matches!(
+                a.status,
+                BranchStatus::LocalActive | BranchStatus::LocalPrunable
+            );
+            let b_active = matches!(
+                b.status,
+                BranchStatus::LocalActive | BranchStatus::LocalPrunable
+            );
 
             match (a_active, b_active) {
                 (true, false) => std::cmp::Ordering::Less,
@@ -121,7 +127,8 @@ impl App {
                         self.watcher.add_fetch_success_log(&self.config.remote_name);
                     }
                     // Process the completed fetch - update branches
-                    self.watcher.on_fetch_complete(&self.repo, &mut self.config, &self.event_tx);
+                    self.watcher
+                        .on_fetch_complete(&self.repo, &mut self.config, &self.event_tx);
                     self.status.is_fetching = false;
                     self.status.last_fetch = self.config.last_fetch;
                     self.status.last_error = None;
@@ -130,7 +137,8 @@ impl App {
                 }
                 WatcherEvent::FetchFailed(msg) => {
                     self.watcher.on_fetch_failed();
-                    self.watcher.add_fetch_log(&self.config.remote_name, &format!("Error: {}", msg));
+                    self.watcher
+                        .add_fetch_log(&self.config.remote_name, &format!("Error: {}", msg));
                     self.status.is_fetching = false;
                     self.status.last_error = Some(msg);
                 }
@@ -156,7 +164,8 @@ impl App {
 
                     // If no hook is configured, process next pending branch
                     if self.config.post_create_command.is_none() {
-                        self.watcher.try_process_next(&self.repo, &mut self.config, &self.event_tx);
+                        self.watcher
+                            .try_process_next(&self.repo, &mut self.config, &self.event_tx);
                     }
                 }
                 WatcherEvent::WorktreeCreateFailed(branch, msg) => {
@@ -165,7 +174,8 @@ impl App {
                     self.update_branch_list();
 
                     // Process next pending branch even if this one failed
-                    self.watcher.try_process_next(&self.repo, &mut self.config, &self.event_tx);
+                    self.watcher
+                        .try_process_next(&self.repo, &mut self.config, &self.event_tx);
                 }
                 WatcherEvent::HookStarted(branch) => {
                     self.status.running_hooks += 1;
@@ -196,7 +206,8 @@ impl App {
                     self.update_branch_list();
 
                     // Process next pending branch (sequential worktree creation)
-                    self.watcher.try_process_next(&self.repo, &mut self.config, &self.event_tx);
+                    self.watcher
+                        .try_process_next(&self.repo, &mut self.config, &self.event_tx);
                 }
             }
         }
@@ -219,18 +230,17 @@ impl App {
         // Don't create if already has worktree or already queued/processing
         if matches!(
             selected.status,
-            BranchStatus::LocalActive | BranchStatus::Creating | BranchStatus::RunningHook | BranchStatus::Queued
+            BranchStatus::LocalActive
+                | BranchStatus::Creating
+                | BranchStatus::RunningHook
+                | BranchStatus::Queued
         ) {
             return;
         }
 
         // Queue the branch for sequential processing
-        self.watcher.queue_branch(
-            &self.repo,
-            &mut self.config,
-            &selected.name,
-            &self.event_tx,
-        );
+        self.watcher
+            .queue_branch(&self.repo, &mut self.config, &selected.name, &self.event_tx);
 
         self.update_branch_list();
         if let Err(e) = self.config.save(self.repo.root()) {
@@ -256,7 +266,10 @@ impl App {
 
         // Check if this is the main worktree (the one with .git)
         if let Ok(worktrees) = manager.list() {
-            if let Some(wt) = worktrees.iter().find(|w| w.branch.as_deref() == Some(&selected.name)) {
+            if let Some(wt) = worktrees
+                .iter()
+                .find(|w| w.branch.as_deref() == Some(&selected.name))
+            {
                 if wt.is_main {
                     self.status.last_error = Some("Cannot delete the main worktree".to_string());
                     return;
@@ -323,4 +336,3 @@ impl App {
         }
     }
 }
-

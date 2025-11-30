@@ -14,7 +14,7 @@ mod watcher;
 use clap::Parser;
 use color_eyre::eyre::Result;
 use std::path::PathBuf;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Git Worktree Agent - Manage git worktrees from remote branches
 #[derive(Parser, Debug)]
@@ -58,9 +58,10 @@ fn main() -> Result<()> {
     color_eyre::install()?;
 
     // Determine repository path
-    let repo_path = args.path.clone().unwrap_or_else(|| {
-        std::env::current_dir().expect("Failed to get current directory")
-    });
+    let repo_path = args
+        .path
+        .clone()
+        .unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
 
     // Check if we're running in TUI mode
     let is_tui_mode = !args.show_config
@@ -117,10 +118,10 @@ fn main() -> Result<()> {
 
     // Run the TUI application
     let terminal = ratatui::init();
-    
+
     // Enable mouse capture for scroll wheel (use Shift+click for text selection)
     crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture).ok();
-    
+
     let result = match app::App::new(&repo_path) {
         Ok(app) => app.run(terminal),
         Err(e) => {
@@ -129,7 +130,7 @@ fn main() -> Result<()> {
             Ok(())
         }
     };
-    
+
     // Ensure mouse capture is disabled on exit
     crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture).ok();
     ratatui::restore();
@@ -158,10 +159,7 @@ fn show_startup_error(mut terminal: ratatui::DefaultTerminal, error_msg: &str) {
                 let area = frame.area();
 
                 // Fill background
-                frame.render_widget(
-                    Block::default().style(Style::default().bg(theme_bg)),
-                    area,
-                );
+                frame.render_widget(Block::default().style(Style::default().bg(theme_bg)), area);
 
                 // Calculate popup size
                 let popup_width = 70.min(area.width.saturating_sub(4));
@@ -243,10 +241,7 @@ fn show_startup_error(mut terminal: ratatui::DefaultTerminal, error_msg: &str) {
                 ]));
 
                 frame.render_widget(block, popup_area);
-                frame.render_widget(
-                    Paragraph::new(lines).wrap(Wrap { trim: false }),
-                    inner,
-                );
+                frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
             })
             .ok();
 
@@ -379,7 +374,11 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     // Get auto-create setting
     print!(
         "Auto-create worktrees for new branches? [{}]: ",
-        if config.auto_create_worktrees { "y" } else { "n" }
+        if config.auto_create_worktrees {
+            "y"
+        } else {
+            "n"
+        }
     );
     io::stdout().flush()?;
     let mut input = String::new();

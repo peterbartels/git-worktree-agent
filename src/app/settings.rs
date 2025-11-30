@@ -2,34 +2,36 @@
 
 use crossterm::event::KeyCode;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 
-use super::state::{SettingsField, SettingsState, ViewMode};
 use super::App;
+use super::state::{SettingsField, SettingsState, ViewMode};
 
 impl App {
     /// Open settings screen
     pub(super) fn open_settings(&mut self) {
         let mut state = SettingsState::new();
-        
+
         // Load current values
         state.remotes = self.repo.get_remotes().unwrap_or_default();
         if let Ok(branches) = self.repo.get_remote_branches(&self.config.remote_name) {
             state.branches = branches.iter().map(|b| b.name.clone()).collect();
         }
-        
+
         self.settings_state = Some(state);
         self.view_mode = ViewMode::Settings;
     }
 
     /// Handle settings keys
     pub(super) fn handle_settings_keys(&mut self, key: crossterm::event::KeyEvent) {
-        let Some(settings) = self.settings_state.as_mut() else { return };
+        let Some(settings) = self.settings_state.as_mut() else {
+            return;
+        };
 
         if settings.editing {
             // Text input mode
@@ -84,13 +86,19 @@ impl App {
                         // Cycle through remotes
                         let remotes = &settings.remotes;
                         if !remotes.is_empty() {
-                            let current_idx = remotes.iter().position(|r| r == &self.config.remote_name).unwrap_or(0);
+                            let current_idx = remotes
+                                .iter()
+                                .position(|r| r == &self.config.remote_name)
+                                .unwrap_or(0);
                             let next_idx = (current_idx + 1) % remotes.len();
                             self.config.remote_name = remotes[next_idx].clone();
                             self.status.remote_name = self.config.remote_name.clone();
                             // Reload branches for new remote
-                            if let Ok(branches) = self.repo.get_remote_branches(&self.config.remote_name) {
-                                settings.branches = branches.iter().map(|b| b.name.clone()).collect();
+                            if let Ok(branches) =
+                                self.repo.get_remote_branches(&self.config.remote_name)
+                            {
+                                settings.branches =
+                                    branches.iter().map(|b| b.name.clone()).collect();
                             }
                             let _ = self.watcher.init(&self.repo, &self.config);
                             let _ = self.config.save(self.repo.root());
@@ -128,7 +136,8 @@ impl App {
                     }
                     SettingsField::PostCreateCommand => {
                         settings.editing = true;
-                        settings.edit_value = self.config.post_create_command.clone().unwrap_or_default();
+                        settings.edit_value =
+                            self.config.post_create_command.clone().unwrap_or_default();
                     }
                 }
             }
@@ -157,8 +166,10 @@ impl App {
     }
 
     pub(super) fn apply_settings_edit(&mut self) {
-        let Some(settings) = self.settings_state.as_mut() else { return };
-        
+        let Some(settings) = self.settings_state.as_mut() else {
+            return;
+        };
+
         match settings.selected_field {
             SettingsField::PollInterval => {
                 if let Ok(val) = settings.edit_value.parse::<u64>() {
@@ -178,7 +189,7 @@ impl App {
             }
             _ => {}
         }
-        
+
         settings.editing = false;
         settings.edit_value.clear();
         let _ = self.config.save(self.repo.root());
@@ -186,7 +197,9 @@ impl App {
 
     /// Render settings screen
     pub(super) fn render_settings(&self, frame: &mut Frame, area: Rect) {
-        let Some(settings) = &self.settings_state else { return };
+        let Some(settings) = &self.settings_state else {
+            return;
+        };
 
         // Fill background
         frame.render_widget(
@@ -198,31 +211,35 @@ impl App {
             .direction(Direction::Vertical)
             .margin(2)
             .constraints([
-                Constraint::Length(3),  // Title
-                Constraint::Min(10),    // Content
-                Constraint::Length(2),  // Navigation
+                Constraint::Length(3), // Title
+                Constraint::Min(10),   // Content
+                Constraint::Length(2), // Navigation
             ])
             .split(area);
 
         // Title
-        let title = Paragraph::new(Line::from(vec![
-            Span::styled("⚙ Settings", Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
-        ]))
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(self.theme.muted)));
+        let title = Paragraph::new(Line::from(vec![Span::styled(
+            "⚙ Settings",
+            Style::default()
+                .fg(self.theme.primary)
+                .add_modifier(Modifier::BOLD),
+        )]))
+        .block(
+            Block::default()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::default().fg(self.theme.muted)),
+        );
         frame.render_widget(title, chunks[0]);
 
         // Settings list
         let mut lines = Vec::new();
-        
+
         for field in SettingsField::all() {
             let is_selected = *field == settings.selected_field;
             let arrow = if is_selected { "▶ " } else { "  " };
-            
+
             let (label, value) = match field {
-                SettingsField::Remote => (
-                    "Remote",
-                    self.config.remote_name.clone(),
-                ),
+                SettingsField::Remote => ("Remote", self.config.remote_name.clone()),
                 SettingsField::PollInterval => (
                     "Poll Interval",
                     if settings.editing && is_selected {
@@ -241,19 +258,29 @@ impl App {
                 ),
                 SettingsField::BaseBranch => (
                     "Base Branch",
-                    self.config.base_branch.clone().unwrap_or_else(|| "(auto)".to_string()),
+                    self.config
+                        .base_branch
+                        .clone()
+                        .unwrap_or_else(|| "(auto)".to_string()),
                 ),
                 SettingsField::PostCreateCommand => (
                     "Post-Create Command",
                     if settings.editing && is_selected {
                         format!("{}_ (editing)", settings.edit_value)
                     } else {
-                        self.config.post_create_command.clone().unwrap_or_else(|| "(none)".to_string())
+                        self.config
+                            .post_create_command
+                            .clone()
+                            .unwrap_or_else(|| "(none)".to_string())
                     },
                 ),
                 SettingsField::AutoCreate => (
                     "Auto-Create Worktrees",
-                    if self.config.auto_create_worktrees { "Yes".to_string() } else { "No".to_string() },
+                    if self.config.auto_create_worktrees {
+                        "Yes".to_string()
+                    } else {
+                        "No".to_string()
+                    },
                 ),
             };
 
@@ -265,8 +292,18 @@ impl App {
 
             lines.push(Line::from(vec![
                 Span::styled(arrow, Style::default().fg(self.theme.primary)),
-                Span::styled(format!("{:<22}", label), line_style.add_modifier(Modifier::BOLD)),
-                Span::styled(value, if is_selected { line_style } else { Style::default().fg(self.theme.secondary) }),
+                Span::styled(
+                    format!("{:<22}", label),
+                    line_style.add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    value,
+                    if is_selected {
+                        line_style
+                    } else {
+                        Style::default().fg(self.theme.secondary)
+                    },
+                ),
             ]));
             lines.push(Line::raw("")); // Spacing
         }
@@ -288,4 +325,3 @@ impl App {
         frame.render_widget(Paragraph::new(nav), chunks[2]);
     }
 }
-

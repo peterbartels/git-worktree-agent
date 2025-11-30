@@ -73,7 +73,10 @@ impl Watcher {
         for branch in branches {
             self.known_branches.insert(branch.name.clone(), branch);
         }
-        debug!("Initialized watcher with {} known branches", self.known_branches.len());
+        debug!(
+            "Initialized watcher with {} known branches",
+            self.known_branches.len()
+        );
         Ok(())
     }
 
@@ -83,7 +86,12 @@ impl Watcher {
     }
 
     /// Start a background fetch (non-blocking)
-    pub fn start_fetch(&mut self, repo_root: PathBuf, remote_name: String, event_tx: mpsc::Sender<WatcherEvent>) {
+    pub fn start_fetch(
+        &mut self,
+        repo_root: PathBuf,
+        remote_name: String,
+        event_tx: mpsc::Sender<WatcherEvent>,
+    ) {
         if self.fetch_in_progress {
             return;
         }
@@ -153,7 +161,12 @@ impl Watcher {
     }
 
     /// Called when fetch completes - update branch list
-    pub fn on_fetch_complete(&mut self, repo: &Repository, config: &mut Config, event_tx: &mpsc::Sender<WatcherEvent>) {
+    pub fn on_fetch_complete(
+        &mut self,
+        repo: &Repository,
+        config: &mut Config,
+        event_tx: &mpsc::Sender<WatcherEvent>,
+    ) {
         self.fetch_in_progress = false;
         config.last_fetch = Some(Utc::now());
 
@@ -175,14 +188,16 @@ impl Watcher {
                 if !config.should_ignore_branch(&branch.name) {
                     new_branches.push(branch.name.clone());
                 }
-                self.known_branches.insert(branch.name.clone(), branch.clone());
+                self.known_branches
+                    .insert(branch.name.clone(), branch.clone());
             }
         }
 
         // Remove branches that no longer exist
         let current_names: std::collections::HashSet<_> =
             current_branches.iter().map(|b| &b.name).collect();
-        self.known_branches.retain(|name, _| current_names.contains(name));
+        self.known_branches
+            .retain(|name, _| current_names.contains(name));
 
         if !new_branches.is_empty() {
             let _ = event_tx.send(WatcherEvent::NewBranchesFound(new_branches.clone()));
@@ -243,7 +258,12 @@ impl Watcher {
 
     /// Get count of pending branches
     pub fn pending_count(&self) -> usize {
-        self.pending_branches.len() + if self.current_processing.is_some() { 1 } else { 0 }
+        self.pending_branches.len()
+            + if self.current_processing.is_some() {
+                1
+            } else {
+                0
+            }
     }
 
     /// Check if a branch is in the pending queue
@@ -253,7 +273,10 @@ impl Watcher {
 
     /// Check if a branch is currently being processed
     pub fn is_current(&self, branch: &str) -> bool {
-        self.current_processing.as_ref().map(|b| b == branch).unwrap_or(false)
+        self.current_processing
+            .as_ref()
+            .map(|b| b == branch)
+            .unwrap_or(false)
     }
 
     /// Check if a branch has a running hook
@@ -309,24 +332,18 @@ impl Watcher {
 
                         match &output {
                             CommandOutput::Exit(code) => {
-                                let _ = event_tx.send(WatcherEvent::HookCompleted(
-                                    branch.clone(),
-                                    *code,
-                                ));
+                                let _ = event_tx
+                                    .send(WatcherEvent::HookCompleted(branch.clone(), *code));
                                 completed.push(branch.clone());
                             }
                             CommandOutput::Error(_) => {
-                                let _ = event_tx.send(WatcherEvent::HookCompleted(
-                                    branch.clone(),
-                                    -1,
-                                ));
+                                let _ =
+                                    event_tx.send(WatcherEvent::HookCompleted(branch.clone(), -1));
                                 completed.push(branch.clone());
                             }
                             _ => {
-                                let _ = event_tx.send(WatcherEvent::HookOutput(
-                                    branch.clone(),
-                                    output,
-                                ));
+                                let _ =
+                                    event_tx.send(WatcherEvent::HookOutput(branch.clone(), output));
                             }
                         }
                     }
@@ -342,7 +359,7 @@ impl Watcher {
         // Remove completed hooks and clear current_processing if done
         for branch in completed {
             self.running_hooks.remove(&branch);
-            
+
             // If this was the branch we were processing, mark as done
             if self.current_processing.as_ref() == Some(&branch) {
                 self.current_processing = None;
@@ -473,12 +490,12 @@ impl Watcher {
             format!("fetch:{}", remote_name),
             format!("git fetch --prune {}", remote_name),
         );
-        
+
         for line in output.lines() {
             log.add_output(CommandOutput::Stdout(line.to_string()));
         }
         log.add_output(CommandOutput::Exit(0));
-        
+
         self.command_logs.push(log);
     }
 
@@ -488,20 +505,17 @@ impl Watcher {
             format!("fetch:{}", remote_name),
             format!("git fetch --prune {}", remote_name),
         );
-        
+
         log.add_output(CommandOutput::Stdout("Fetch successful".to_string()));
         log.add_output(CommandOutput::Exit(0));
-        
+
         self.command_logs.push(log);
     }
 
     /// Add a log entry for worktree creation
     pub fn add_worktree_log(&mut self, branch: &str, messages: &[String]) {
-        let mut log = CommandLog::new(
-            branch.to_string(),
-            format!("git worktree add ({})", branch),
-        );
-        
+        let mut log = CommandLog::new(branch.to_string(), format!("git worktree add ({})", branch));
+
         for line in messages {
             if line.starts_with("ERROR:") {
                 log.add_output(CommandOutput::Stderr(line.clone()));
@@ -510,7 +524,7 @@ impl Watcher {
             }
         }
         log.add_output(CommandOutput::Exit(0));
-        
+
         self.command_logs.push(log);
     }
 }

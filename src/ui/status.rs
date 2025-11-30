@@ -67,10 +67,7 @@ impl<'a> StatusWidget<'a> {
 impl Widget for StatusWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let fetch_status = if self.status.is_fetching {
-            Span::styled(
-                "⟳ Fetching... ",
-                Style::default().fg(self.theme.primary),
-            )
+            Span::styled("⟳ Fetching... ", Style::default().fg(self.theme.primary))
         } else {
             Span::styled(
                 format!("◉ Last fetch: {} ", self.format_last_fetch()),
@@ -79,15 +76,9 @@ impl Widget for StatusWidget<'_> {
         };
 
         let auto_create = if self.status.auto_create_enabled {
-            Span::styled(
-                "│ Auto: ON ",
-                Style::default().fg(self.theme.success),
-            )
+            Span::styled("│ Auto: ON ", Style::default().fg(self.theme.success))
         } else {
-            Span::styled(
-                "│ Auto: OFF ",
-                Style::default().fg(self.theme.muted),
-            )
+            Span::styled("│ Auto: OFF ", Style::default().fg(self.theme.muted))
         };
 
         let poll_info = Span::styled(
@@ -152,4 +143,3 @@ fn truncate_str(s: &str, max_len: usize) -> &str {
         &s[..max_len.saturating_sub(3)]
     }
 }
-
