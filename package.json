@@ -1,0 +1,40 @@
+{
+  "name": "git-worktree-agent",
+  "version": "0.1.0",
+  "description": "A TUI for managing git worktrees from remote branches with automatic polling and hooks",
+  "author": "peterbartels <peter.bartels@deptagency.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/peterbartels/git-worktree-agent"
+  },
+  "keywords": [
+    "git",
+    "worktree",
+    "tui",
+    "cli",
+    "branches",
+    "automation"
+  ],
+  "bin": {
+    "gwa": "bin/gwa"
+  },
+  "files": [
+    "bin",
+    "npm"
+  ],
+  "scripts": {
+    "postinstall": "node npm/install.js"
+  },
+  "optionalDependencies": {
+    "@gwa/linux-x64": "0.1.0",
+    "@gwa/linux-arm64": "0.1.0",
+    "@gwa/darwin-x64": "0.1.0",
+    "@gwa/darwin-arm64": "0.1.0",
+    "@gwa/win32-x64": "0.1.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
+
