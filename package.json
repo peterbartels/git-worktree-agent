@@ -1,6 +1,6 @@
 {
   "name": "git-worktree-agent",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "A TUI for managing git worktrees from remote branches with automatic polling and hooks",
   "author": "peterbartels <peter.bartels@deptagency.com>",
   "license": "MIT",
