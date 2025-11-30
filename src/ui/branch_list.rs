@@ -19,6 +19,8 @@ pub enum BranchStatus {
     LocalActive,
     /// Has local worktree but prunable
     LocalPrunable,
+    /// Queued for worktree creation
+    Queued,
     /// Creating worktree
     Creating,
     /// Running hook
@@ -142,6 +144,10 @@ impl<'a> BranchListWidget<'a> {
                 "◐",
                 Style::default().fg(self.theme.warning),
             ),
+            BranchStatus::Queued => (
+                "◷",
+                Style::default().fg(self.theme.warning),
+            ),
             BranchStatus::Creating => (
                 "◔",
                 Style::default().fg(self.theme.primary),
@@ -183,11 +189,14 @@ impl StatefulWidget for BranchListWidget<'_> {
                 };
 
                 let status_label = match item.status {
+                    BranchStatus::Queued => {
+                        Span::styled(" queued", Style::default().fg(self.theme.warning))
+                    }
                     BranchStatus::Creating => {
-                        Span::styled(" creating...", Style::default().fg(self.theme.primary))
+                        Span::styled(" ⟳ creating...", Style::default().fg(self.theme.primary))
                     }
                     BranchStatus::RunningHook => {
-                        Span::styled(" running hook...", Style::default().fg(self.theme.secondary))
+                        Span::styled(" ⟳ running hook...", Style::default().fg(self.theme.secondary))
                     }
                     BranchStatus::LocalPrunable => {
                         Span::styled(" (prunable)", Style::default().fg(self.theme.warning))

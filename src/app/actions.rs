@@ -27,10 +27,23 @@ impl App {
                     .iter()
                     .find(|w| w.branch.as_deref() == Some(&branch.name));
 
-                let status = if self.config.untracked_branches.contains(&branch.name) {
+                // Check queue/processing status first
+                let status = if self.watcher.is_current(&branch.name) {
+                    // Currently being processed - check if hook is running
+                    if self.watcher.has_running_hook(&branch.name) {
+                        BranchStatus::RunningHook
+                    } else {
+                        BranchStatus::Creating
+                    }
+                } else if self.watcher.is_pending(&branch.name) {
+                    BranchStatus::Queued
+                } else if self.config.untracked_branches.contains(&branch.name) {
                     BranchStatus::Untracked
                 } else if let Some(wt) = existing_worktree {
-                    if wt.is_prunable {
+                    // Check if hook is running for this worktree
+                    if self.watcher.has_running_hook(&branch.name) {
+                        BranchStatus::RunningHook
+                    } else if wt.is_prunable {
                         BranchStatus::LocalPrunable
                     } else {
                         BranchStatus::LocalActive
@@ -140,11 +153,19 @@ impl App {
                     info!("Worktree created for: {}", branch);
                     self.update_branch_list();
                     self.update_status();
+
+                    // If no hook is configured, process next pending branch
+                    if self.config.post_create_command.is_none() {
+                        self.watcher.try_process_next(&self.repo, &mut self.config, &self.event_tx);
+                    }
                 }
                 WatcherEvent::WorktreeCreateFailed(branch, msg) => {
                     error!("Worktree creation failed for {}: {}", branch, msg);
                     self.status.last_error = Some(format!("{}: {}", branch, msg));
                     self.update_branch_list();
+
+                    // Process next pending branch even if this one failed
+                    self.watcher.try_process_next(&self.repo, &mut self.config, &self.event_tx);
                 }
                 WatcherEvent::HookStarted(branch) => {
                     self.status.running_hooks += 1;
@@ -173,6 +194,9 @@ impl App {
                     }
 
                     self.update_branch_list();
+
+                    // Process next pending branch (sequential worktree creation)
+                    self.watcher.try_process_next(&self.repo, &mut self.config, &self.event_tx);
                 }
             }
         }
@@ -186,32 +210,27 @@ impl App {
         self.status.poll_interval = self.config.poll_interval_secs;
     }
 
-    /// Create worktree for the selected branch
+    /// Create worktree for the selected branch (queued for sequential processing)
     pub(super) fn create_selected_worktree(&mut self) {
         let Some(selected) = self.branch_list_state.selected().cloned() else {
             return;
         };
 
-        // Don't create if already has worktree
+        // Don't create if already has worktree or already queued/processing
         if matches!(
             selected.status,
-            BranchStatus::LocalActive | BranchStatus::Creating | BranchStatus::RunningHook
+            BranchStatus::LocalActive | BranchStatus::Creating | BranchStatus::RunningHook | BranchStatus::Queued
         ) {
             return;
         }
 
-        let manager = WorktreeManager::new(&self.repo);
-
-        if let Err(e) = self.watcher.create_worktree(
+        // Queue the branch for sequential processing
+        self.watcher.queue_branch(
             &self.repo,
             &mut self.config,
             &selected.name,
-            &manager,
             &self.event_tx,
-        ) {
-            error!("Failed to create worktree: {}", e);
-            self.status.last_error = Some(e.to_string());
-        }
+        );
 
         self.update_branch_list();
         if let Err(e) = self.config.save(self.repo.root()) {

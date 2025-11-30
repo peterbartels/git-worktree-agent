@@ -48,6 +48,10 @@ pub struct Watcher {
     pub command_logs: Vec<CommandLog>,
     /// Is a fetch currently in progress?
     fetch_in_progress: bool,
+    /// Queue of branches pending worktree creation (processed sequentially)
+    pending_branches: Vec<String>,
+    /// Currently processing a worktree (branch name if any)
+    current_processing: Option<String>,
 }
 
 impl Watcher {
@@ -58,6 +62,8 @@ impl Watcher {
             running_hooks: HashMap::new(),
             command_logs: Vec::new(),
             fetch_in_progress: false,
+            pending_branches: Vec::new(),
+            current_processing: None,
         }
     }
 
@@ -181,7 +187,7 @@ impl Watcher {
         if !new_branches.is_empty() {
             let _ = event_tx.send(WatcherEvent::NewBranchesFound(new_branches.clone()));
 
-            // Auto-create worktrees if enabled
+            // Auto-create worktrees if enabled - queue them for sequential processing
             if config.auto_create_worktrees {
                 let manager = WorktreeManager::new(repo);
 
@@ -196,10 +202,84 @@ impl Watcher {
                         continue;
                     }
 
-                    // Create the worktree
-                    let _ = self.create_worktree(repo, config, branch, &manager, event_tx);
+                    // Queue the branch for processing (instead of creating immediately)
+                    if !self.pending_branches.contains(branch) {
+                        self.pending_branches.push(branch.clone());
+                    }
+                }
+
+                // Start processing if not already doing so
+                if self.current_processing.is_none() && !self.pending_branches.is_empty() {
+                    self.process_next_branch(repo, config, event_tx);
                 }
             }
+        }
+    }
+
+    /// Process the next branch in the queue (creates worktree + starts hook)
+    fn process_next_branch(
+        &mut self,
+        repo: &Repository,
+        config: &mut Config,
+        event_tx: &mpsc::Sender<WatcherEvent>,
+    ) {
+        // Get the next branch from the queue
+        let Some(branch) = self.pending_branches.first().cloned() else {
+            self.current_processing = None;
+            return;
+        };
+
+        self.pending_branches.remove(0);
+        self.current_processing = Some(branch.clone());
+
+        let manager = WorktreeManager::new(repo);
+        let _ = self.create_worktree(repo, config, &branch, &manager, event_tx);
+    }
+
+    /// Check if we're currently processing branches or have pending ones
+    pub fn is_processing(&self) -> bool {
+        self.current_processing.is_some() || !self.pending_branches.is_empty()
+    }
+
+    /// Get count of pending branches
+    pub fn pending_count(&self) -> usize {
+        self.pending_branches.len() + if self.current_processing.is_some() { 1 } else { 0 }
+    }
+
+    /// Check if a branch is in the pending queue
+    pub fn is_pending(&self, branch: &str) -> bool {
+        self.pending_branches.contains(&branch.to_string())
+    }
+
+    /// Check if a branch is currently being processed
+    pub fn is_current(&self, branch: &str) -> bool {
+        self.current_processing.as_ref().map(|b| b == branch).unwrap_or(false)
+    }
+
+    /// Check if a branch has a running hook
+    pub fn has_running_hook(&self, branch: &str) -> bool {
+        self.running_hooks.contains_key(branch)
+    }
+
+    /// Queue a branch for worktree creation (used for manual creation)
+    pub fn queue_branch(
+        &mut self,
+        repo: &Repository,
+        config: &mut Config,
+        branch: &str,
+        event_tx: &mpsc::Sender<WatcherEvent>,
+    ) {
+        // Don't queue if already queued or being processed
+        if self.is_pending(branch) || self.is_current(branch) {
+            return;
+        }
+
+        // Add to queue
+        self.pending_branches.push(branch.to_string());
+
+        // Start processing if not already doing so
+        if self.current_processing.is_none() {
+            self.process_next_branch(repo, config, event_tx);
         }
     }
 
@@ -259,9 +339,27 @@ impl Watcher {
             }
         }
 
-        // Remove completed hooks
+        // Remove completed hooks and clear current_processing if done
         for branch in completed {
             self.running_hooks.remove(&branch);
+            
+            // If this was the branch we were processing, mark as done
+            if self.current_processing.as_ref() == Some(&branch) {
+                self.current_processing = None;
+            }
+        }
+    }
+
+    /// Try to process the next pending branch (call after hook completes)
+    pub fn try_process_next(
+        &mut self,
+        repo: &Repository,
+        config: &mut Config,
+        event_tx: &mpsc::Sender<WatcherEvent>,
+    ) {
+        // Only process next if we're not currently processing anything
+        if self.current_processing.is_none() && !self.pending_branches.is_empty() {
+            self.process_next_branch(repo, config, event_tx);
         }
     }
 
@@ -307,14 +405,24 @@ impl Watcher {
                     branch.to_string(),
                     e.to_string(),
                 ));
+                // Clear current_processing so next branch can proceed
+                self.current_processing = None;
+                return Ok(());
             }
         }
 
         // Run post-create hook if configured
+        let mut hook_started = false;
         if config.get_worktree(branch).is_some() {
             if let Some(cmd) = config.post_create_command.clone() {
                 self.run_hook(config, branch, &cmd, &worktree_path, event_tx)?;
+                hook_started = true;
             }
+        }
+
+        // If no hook was started, clear current_processing so next branch can proceed
+        if !hook_started {
+            self.current_processing = None;
         }
 
         Ok(())
