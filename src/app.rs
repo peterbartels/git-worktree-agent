@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     DefaultTerminal, Frame,
 };
 use tracing::{debug, error, info};
@@ -37,6 +37,13 @@ pub enum ViewMode {
     Setup,
     /// Settings screen
     Settings,
+    /// Delete confirmation dialog
+    DeleteConfirm {
+        /// Branch name to delete
+        branch: String,
+        /// User input (must be "yes" to proceed)
+        input: String,
+    },
 }
 
 /// Setup wizard step
@@ -359,7 +366,71 @@ impl App {
             ViewMode::Error(msg) => self.render_error(frame, area, msg.clone()),
             ViewMode::Setup => self.render_setup(frame, area),
             ViewMode::Settings => self.render_settings(frame, area),
+            ViewMode::DeleteConfirm { branch, input } => {
+                let branch = branch.clone();
+                let input = input.clone();
+                self.render_main(frame, area);
+                self.render_delete_confirm(frame, area, branch, input);
+            }
         }
+    }
+
+    /// Render delete confirmation dialog
+    fn render_delete_confirm(&self, frame: &mut Frame, area: Rect, branch: String, input: String) {
+        // Center the popup
+        let popup_width = 60.min(area.width.saturating_sub(4));
+        let popup_height = 10;
+
+        let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+        let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+
+        let popup_area = Rect {
+            x: area.x + popup_x,
+            y: area.y + popup_y,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        // Clear the area behind the popup
+        frame.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(self.theme.error))
+            .title(Span::styled(
+                " ⚠ Delete Worktree ",
+                Style::default()
+                    .fg(self.theme.error)
+                    .add_modifier(Modifier::BOLD),
+            ));
+
+        let inner = block.inner(popup_area);
+        frame.render_widget(block, popup_area);
+
+        let lines = vec![
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("Delete worktree for branch "),
+                Span::styled(&branch, Style::default().fg(self.theme.secondary).add_modifier(Modifier::BOLD)),
+                Span::raw("?"),
+            ]),
+            Line::raw(""),
+            Line::styled(
+                "This will remove the worktree directory!",
+                Style::default().fg(self.theme.warning),
+            ),
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("Type "),
+                Span::styled("yes", Style::default().fg(self.theme.primary).add_modifier(Modifier::BOLD)),
+                Span::raw(" to confirm: "),
+                Span::styled(&input, Style::default().fg(self.theme.fg).add_modifier(Modifier::UNDERLINED)),
+                Span::styled("█", Style::default().fg(self.theme.primary)),
+            ]),
+        ];
+
+        let paragraph = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
+        frame.render_widget(paragraph, inner);
     }
 
     /// Render setup wizard
@@ -751,6 +822,7 @@ impl App {
             ViewMode::Error(_) => self.handle_error_keys(key),
             ViewMode::Setup => self.handle_setup_keys(key),
             ViewMode::Settings => self.handle_settings_keys(key),
+            ViewMode::DeleteConfirm { .. } => self.handle_delete_confirm_keys(key),
         }
     }
 
@@ -1614,15 +1686,36 @@ impl App {
 
         let manager = WorktreeManager::new(&self.repo);
 
+        // Check if this is the main worktree (the one with .git)
+        if let Ok(worktrees) = manager.list() {
+            if let Some(wt) = worktrees.iter().find(|w| w.branch.as_deref() == Some(&selected.name)) {
+                if wt.is_main {
+                    self.status.last_error = Some("Cannot delete the main worktree (contains .git)".to_string());
+                    return;
+                }
+            }
+        }
+
+        // Show confirmation dialog
+        self.view_mode = ViewMode::DeleteConfirm {
+            branch: selected.name.clone(),
+            input: String::new(),
+        };
+    }
+
+    /// Actually perform the worktree deletion after confirmation
+    fn do_delete_worktree(&mut self, branch: &str) {
+        let manager = WorktreeManager::new(&self.repo);
+
         // Get worktree path
-        if let Ok(Some(path)) = manager.get_worktree_path(&selected.name) {
+        if let Ok(Some(path)) = manager.get_worktree_path(branch) {
             if let Err(e) = manager.remove(&path, false) {
                 error!("Failed to remove worktree: {}", e);
                 self.status.last_error = Some(e.to_string());
             } else {
                 // Update config
-                self.config.remove_worktree(&selected.name);
-                self.config.untrack_branch(&selected.name);
+                self.config.remove_worktree(branch);
+                self.config.untrack_branch(branch);
 
                 if let Err(e) = self.config.save(self.repo.root()) {
                     error!("Failed to save config: {}", e);
@@ -1631,6 +1724,37 @@ impl App {
         }
 
         self.update_branch_list();
+    }
+
+    /// Handle keys in delete confirmation dialog
+    fn handle_delete_confirm_keys(&mut self, key: KeyEvent) {
+        // Extract branch and input from view mode
+        let (branch, mut input) = match &self.view_mode {
+            ViewMode::DeleteConfirm { branch, input } => (branch.clone(), input.clone()),
+            _ => return,
+        };
+
+        match key.code {
+            KeyCode::Esc => {
+                self.view_mode = ViewMode::Main;
+            }
+            KeyCode::Enter => {
+                if input.to_lowercase() == "yes" {
+                    self.view_mode = ViewMode::Main;
+                    self.do_delete_worktree(&branch);
+                }
+                // If not "yes", do nothing - user must type exactly "yes"
+            }
+            KeyCode::Backspace => {
+                input.pop();
+                self.view_mode = ViewMode::DeleteConfirm { branch, input };
+            }
+            KeyCode::Char(c) => {
+                input.push(c);
+                self.view_mode = ViewMode::DeleteConfirm { branch, input };
+            }
+            _ => {}
+        }
     }
 
     /// Toggle tracking for the selected branch
