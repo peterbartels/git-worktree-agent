@@ -1,5 +1,11 @@
 # git-worktree-agent
 
+## 0.2.1
+
+### Patch Changes
+
+- 24a82c2: Simplify package: bundle all platform binaries in single npm package
+
 ## 0.2.0
 
 ### Minor Changes
