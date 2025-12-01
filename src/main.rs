@@ -13,7 +13,7 @@ mod watcher;
 
 use clap::Parser;
 use color_eyre::eyre::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Git Worktree Manager - Manage git worktrees from remote branches
@@ -255,21 +255,20 @@ fn show_startup_error(mut terminal: ratatui::DefaultTerminal, error_msg: &str) {
             .ok();
 
         // Wait for quit key
-        if let Ok(true) = event::poll(std::time::Duration::from_millis(100)) {
-            if let Ok(Event::Key(key)) = event::read() {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => break,
-                        _ => {}
-                    }
-                }
+        if let Ok(true) = event::poll(std::time::Duration::from_millis(100))
+            && let Ok(Event::Key(key)) = event::read()
+            && key.kind == KeyEventKind::Press
+        {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => break,
+                _ => {}
             }
         }
     }
 }
 
 /// Show the current configuration
-fn show_config(repo_path: &PathBuf) -> Result<()> {
+fn show_config(repo_path: &Path) -> Result<()> {
     let repo = git::Repository::discover(repo_path)?;
     let config = config::Config::load(repo.main_root())?;
 
@@ -306,7 +305,7 @@ fn show_config(repo_path: &PathBuf) -> Result<()> {
 }
 
 /// Update configuration from command line
-fn update_config(repo_path: &PathBuf, args: &Args) -> Result<()> {
+fn update_config(repo_path: &Path, args: &Args) -> Result<()> {
     let repo = git::Repository::discover(repo_path)?;
     let mut config = config::Config::load(repo.main_root())?;
 
@@ -332,7 +331,7 @@ fn update_config(repo_path: &PathBuf, args: &Args) -> Result<()> {
 }
 
 /// Initialize configuration interactively
-fn init_config(repo_path: &PathBuf) -> Result<()> {
+fn init_config(repo_path: &Path) -> Result<()> {
     use std::io::{self, Write};
 
     let repo = git::Repository::discover(repo_path)?;
@@ -358,10 +357,10 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     let input = input.trim();
-    if !input.is_empty() {
-        if let Ok(interval) = input.parse() {
-            config.poll_interval_secs = interval;
-        }
+    if !input.is_empty()
+        && let Ok(interval) = input.parse()
+    {
+        config.poll_interval_secs = interval;
     }
 
     // Get post-create command

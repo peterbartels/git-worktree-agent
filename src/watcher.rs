@@ -9,7 +9,7 @@ use crate::executor::{CommandExecutor, CommandLog, CommandOutput, RunningCommand
 use crate::git::{RemoteBranch, Repository, WorktreeAgent};
 use color_eyre::eyre::Result;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
 use tracing::{debug, error};
@@ -34,6 +34,7 @@ pub enum WatcherEvent {
     /// Hook started
     HookStarted(String),
     /// Hook output received
+    #[allow(dead_code)]
     HookOutput(String, CommandOutput),
     /// Hook completed
     HookCompleted(String, i32),
@@ -283,11 +284,13 @@ impl Watcher {
     }
 
     /// Check if we're currently processing branches or have pending ones
+    #[allow(dead_code)]
     pub fn is_processing(&self) -> bool {
         self.current_processing.is_some() || !self.pending_branches.is_empty()
     }
 
     /// Get count of pending branches
+    #[allow(dead_code)]
     pub fn pending_count(&self) -> usize {
         self.pending_branches.len()
             + if self.current_processing.is_some() {
@@ -466,7 +469,7 @@ impl Watcher {
         &mut self,
         branch: &str,
         command: &str,
-        worktree_path: &PathBuf,
+        worktree_path: &Path,
         event_tx: &mpsc::Sender<WatcherEvent>,
     ) -> Result<()> {
         let _ = event_tx.send(WatcherEvent::HookStarted(branch.to_string()));

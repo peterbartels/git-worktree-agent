@@ -103,11 +103,11 @@ impl BranchListState {
         self.items = items;
 
         // Try to re-select the same branch by name
-        if let Some(name) = selected_branch_name {
-            if let Some(idx) = self.items.iter().position(|item| item.name == name) {
-                self.list_state.select(Some(idx));
-                return;
-            }
+        if let Some(name) = selected_branch_name
+            && let Some(idx) = self.items.iter().position(|item| item.name == name)
+        {
+            self.list_state.select(Some(idx));
+            return;
         }
 
         // Fallback: select first item if nothing selected

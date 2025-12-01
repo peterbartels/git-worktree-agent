@@ -261,16 +261,14 @@ impl App {
         let worktree_agent = WorktreeAgent::new(&self.repo);
 
         // Check if this is the main worktree (the one with .git)
-        if let Ok(worktrees) = worktree_agent.list() {
-            if let Some(wt) = worktrees
+        if let Ok(worktrees) = worktree_agent.list()
+            && let Some(wt) = worktrees
                 .iter()
                 .find(|w| w.branch.as_deref() == Some(&selected.name))
-            {
-                if wt.is_main {
-                    self.status.last_error = Some("Cannot delete the main worktree".to_string());
-                    return;
-                }
-            }
+            && wt.is_main
+        {
+            self.status.last_error = Some("Cannot delete the main worktree".to_string());
+            return;
         }
 
         // Show confirmation dialog
@@ -285,11 +283,11 @@ impl App {
         let worktree_agent = WorktreeAgent::new(&self.repo);
 
         // Get worktree path
-        if let Ok(Some(path)) = worktree_agent.get_worktree_path(branch) {
-            if let Err(e) = worktree_agent.remove(&path, false) {
-                error!("Failed to remove worktree: {}", e);
-                self.status.last_error = Some(e.to_string());
-            }
+        if let Ok(Some(path)) = worktree_agent.get_worktree_path(branch)
+            && let Err(e) = worktree_agent.remove(&path, false)
+        {
+            error!("Failed to remove worktree: {}", e);
+            self.status.last_error = Some(e.to_string());
         }
 
         self.update_branch_list();

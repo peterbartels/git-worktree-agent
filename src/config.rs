@@ -133,10 +133,10 @@ impl Config {
     pub fn should_ignore_branch(&self, branch: &str) -> bool {
         for pattern in &self.ignore_patterns {
             // Try as glob pattern first
-            if let Ok(glob_pattern) = glob::Pattern::new(pattern) {
-                if glob_pattern.matches(branch) {
-                    return true;
-                }
+            if let Ok(glob_pattern) = glob::Pattern::new(pattern)
+                && glob_pattern.matches(branch)
+            {
+                return true;
             }
             // Also check exact match (for branch names added via 't' key)
             if pattern == branch {
@@ -147,6 +147,7 @@ impl Config {
     }
 
     /// Check if a branch is in the ignore list (exact match, not pattern)
+    #[allow(dead_code)]
     pub fn is_ignored(&self, branch: &str) -> bool {
         self.ignore_patterns.contains(&branch.to_string())
     }
@@ -159,6 +160,7 @@ impl Config {
     }
 
     /// Remove a branch from the ignore list (unignore)
+    #[allow(dead_code)]
     pub fn unignore_branch(&mut self, branch: &str) {
         self.ignore_patterns.retain(|p| p != branch);
     }
@@ -174,16 +176,7 @@ impl Config {
 
 /// Sanitize a branch name for use as a directory name
 pub fn sanitize_branch_name(branch: &str) -> String {
-    branch
-        .replace('/', "-")
-        .replace('\\', "-")
-        .replace(':', "-")
-        .replace('*', "-")
-        .replace('?', "-")
-        .replace('"', "-")
-        .replace('<', "-")
-        .replace('>', "-")
-        .replace('|', "-")
+    branch.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "-")
 }
 
 #[cfg(test)]

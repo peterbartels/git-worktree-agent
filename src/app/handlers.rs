@@ -266,13 +266,13 @@ impl App {
 
                     // Enter creates the worktree
                     KeyCode::Enter => {
-                        if !state.new_branch_name.is_empty() {
-                            if let Some(base_branch) = &state.selected_base {
-                                let new_branch = state.new_branch_name.clone();
-                                let base = base_branch.clone();
-                                self.view_mode = ViewMode::Main;
-                                self.do_create_new_worktree(&new_branch, &base);
-                            }
+                        if !state.new_branch_name.is_empty()
+                            && let Some(base_branch) = &state.selected_base
+                        {
+                            let new_branch = state.new_branch_name.clone();
+                            let base = base_branch.clone();
+                            self.view_mode = ViewMode::Main;
+                            self.do_create_new_worktree(&new_branch, &base);
                         }
                     }
 

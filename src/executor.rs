@@ -35,6 +35,7 @@ pub struct CommandExecutor;
 
 impl CommandExecutor {
     /// Run a command synchronously and return the result
+    #[allow(dead_code)]
     pub fn run_sync(command: &str, working_dir: &Path) -> Result<(i32, String, String)> {
         info!("Running command: {} in {}", command, working_dir.display());
 
@@ -221,6 +222,7 @@ impl CommandLog {
     }
 
     /// Get a summary of the output
+    #[allow(dead_code)]
     pub fn summary(&self) -> String {
         if self.is_running {
             format!("Running: {}", self.command)

@@ -352,6 +352,7 @@ impl<'a> WorktreeAgent<'a> {
     }
 
     /// Prune stale worktree references
+    #[allow(dead_code)]
     pub fn prune(&self) -> Result<()> {
         debug!("Pruning stale worktree references");
 

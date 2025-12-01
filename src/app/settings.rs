@@ -143,22 +143,22 @@ impl App {
             }
             KeyCode::Left => {
                 // Decrease numeric values
-                if settings.selected_field == SettingsField::PollInterval {
-                    if self.config.poll_interval_secs > 5 {
-                        self.config.poll_interval_secs -= 5;
-                        self.status.poll_interval = self.config.poll_interval_secs;
-                        let _ = self.config.save(self.repo.main_root());
-                    }
+                if settings.selected_field == SettingsField::PollInterval
+                    && self.config.poll_interval_secs > 5
+                {
+                    self.config.poll_interval_secs -= 5;
+                    self.status.poll_interval = self.config.poll_interval_secs;
+                    let _ = self.config.save(self.repo.main_root());
                 }
             }
             KeyCode::Right => {
                 // Increase numeric values
-                if settings.selected_field == SettingsField::PollInterval {
-                    if self.config.poll_interval_secs < 300 {
-                        self.config.poll_interval_secs += 5;
-                        self.status.poll_interval = self.config.poll_interval_secs;
-                        let _ = self.config.save(self.repo.main_root());
-                    }
+                if settings.selected_field == SettingsField::PollInterval
+                    && self.config.poll_interval_secs < 300
+                {
+                    self.config.poll_interval_secs += 5;
+                    self.status.poll_interval = self.config.poll_interval_secs;
+                    let _ = self.config.save(self.repo.main_root());
                 }
             }
             _ => {}
@@ -173,7 +173,7 @@ impl App {
         match settings.selected_field {
             SettingsField::PollInterval => {
                 if let Ok(val) = settings.edit_value.parse::<u64>() {
-                    self.config.poll_interval_secs = val.max(1).min(3600);
+                    self.config.poll_interval_secs = val.clamp(1, 3600);
                     self.status.poll_interval = self.config.poll_interval_secs;
                 }
             }
