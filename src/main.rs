@@ -262,7 +262,7 @@ fn show_startup_error(mut terminal: ratatui::DefaultTerminal, error_msg: &str) {
 /// Show the current configuration
 fn show_config(repo_path: &PathBuf) -> Result<()> {
     let repo = git::Repository::discover(repo_path)?;
-    let config = config::Config::load(repo.root())?;
+    let config = config::Config::load(repo.main_root())?;
 
     println!("Git Worktree Agent Configuration");
     println!("================================");
@@ -299,7 +299,7 @@ fn show_config(repo_path: &PathBuf) -> Result<()> {
 /// Update configuration from command line
 fn update_config(repo_path: &PathBuf, args: &Args) -> Result<()> {
     let repo = git::Repository::discover(repo_path)?;
-    let mut config = config::Config::load(repo.root())?;
+    let mut config = config::Config::load(repo.main_root())?;
 
     if let Some(ref cmd) = args.set_command {
         config.post_create_command = Some(cmd.clone());
@@ -316,7 +316,7 @@ fn update_config(repo_path: &PathBuf, args: &Args) -> Result<()> {
         println!("Enabled auto-create mode");
     }
 
-    config.save(repo.root())?;
+    config.save(repo.main_root())?;
     println!("Configuration saved to {}", config::CONFIG_FILE_NAME);
 
     Ok(())
@@ -327,7 +327,7 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     use std::io::{self, Write};
 
     let repo = git::Repository::discover(repo_path)?;
-    let mut config = config::Config::load(repo.root())?;
+    let mut config = config::Config::load(repo.main_root())?;
 
     println!("Git Worktree Agent - Configuration");
     println!("===================================");
@@ -398,7 +398,7 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     }
 
     // Save configuration
-    config.save(repo.root())?;
+    config.save(repo.main_root())?;
 
     println!();
     println!("Configuration saved to {}", config::CONFIG_FILE_NAME);

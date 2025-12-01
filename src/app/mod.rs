@@ -63,10 +63,11 @@ impl App {
         let repo = Repository::discover(repo_path)?;
 
         // Check if config file exists (first run detection)
-        let config_path = repo.root().join(crate::config::CONFIG_FILE_NAME);
+        // Config is always stored in the main worktree (where .git directory is)
+        let config_path = repo.main_root().join(crate::config::CONFIG_FILE_NAME);
         let is_first_run = !config_path.exists();
 
-        let config = Config::load(repo.root())?;
+        let config = Config::load(repo.main_root())?;
 
         let (event_tx, event_rx) = mpsc::channel();
 
@@ -177,7 +178,7 @@ impl App {
 
         // Only save config if we didn't start in error mode
         if !started_with_error {
-            self.config.save(self.repo.root())?;
+            self.config.save(self.repo.main_root())?;
         }
 
         Ok(())

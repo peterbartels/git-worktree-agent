@@ -239,7 +239,7 @@ impl App {
             .queue_branch(&self.repo, &mut self.config, &selected.name, &self.event_tx);
 
         self.update_branch_list();
-        if let Err(e) = self.config.save(self.repo.root()) {
+        if let Err(e) = self.config.save(self.repo.main_root()) {
             error!("Failed to save config: {}", e);
         }
     }
@@ -307,7 +307,7 @@ impl App {
             self.config.ignore_branch(&selected.name);
         }
 
-        if let Err(e) = self.config.save(self.repo.root()) {
+        if let Err(e) = self.config.save(self.repo.main_root()) {
             error!("Failed to save config: {}", e);
         }
 
@@ -319,7 +319,7 @@ impl App {
         self.config.auto_create_worktrees = !self.config.auto_create_worktrees;
         self.status.auto_create_enabled = self.config.auto_create_worktrees;
 
-        if let Err(e) = self.config.save(self.repo.root()) {
+        if let Err(e) = self.config.save(self.repo.main_root()) {
             error!("Failed to save config: {}", e);
         }
     }

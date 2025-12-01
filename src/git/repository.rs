@@ -20,12 +20,16 @@ pub struct RemoteBranch {
 
 /// Wrapper around a git repository (uses git CLI)
 pub struct Repository {
+    /// Current worktree root (where we're running from)
     root: PathBuf,
+    /// Main worktree root (where .git directory and config live)
+    main_root: PathBuf,
 }
 
 impl Repository {
     /// Discover and open a git repository from the given path
     pub fn discover(path: &Path) -> Result<Self> {
+        // Get the current worktree root
         let output = Command::new("git")
             .args(["rev-parse", "--show-toplevel"])
             .current_dir(path)
@@ -44,16 +48,72 @@ impl Repository {
         }
 
         let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let root = PathBuf::from(root);
+        let root = PathBuf::from(&root);
+
+        // Get the main worktree root (where .git directory lives)
+        // Use git-common-dir to find the shared .git directory
+        let main_root = Self::find_main_worktree(&root)?;
 
         debug!("Discovered git repository at: {}", root.display());
+        debug!("Main worktree at: {}", main_root.display());
 
-        Ok(Self { root })
+        Ok(Self { root, main_root })
     }
 
-    /// Get the repository root path
+    /// Find the main worktree directory (where .git folder and config live)
+    fn find_main_worktree(worktree_root: &Path) -> Result<PathBuf> {
+        // Get the common git directory
+        let output = Command::new("git")
+            .args(["rev-parse", "--git-common-dir"])
+            .current_dir(worktree_root)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .with_context(|| "Failed to get git common dir")?;
+
+        if !output.status.success() {
+            // Fallback to current root
+            return Ok(worktree_root.to_path_buf());
+        }
+
+        let git_common_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let git_common_dir = if Path::new(&git_common_dir).is_absolute() {
+            PathBuf::from(&git_common_dir)
+        } else {
+            worktree_root.join(&git_common_dir)
+        };
+
+        // The main worktree is the parent of the .git directory
+        // git-common-dir returns the .git directory itself
+        if let Some(parent) = git_common_dir.parent() {
+            // Check if this is actually a .git directory
+            if git_common_dir.ends_with(".git") || git_common_dir.file_name().map(|n| n == ".git").unwrap_or(false) {
+                return Ok(parent.to_path_buf());
+            }
+        }
+
+        // If git-common-dir doesn't end with .git, it might be inside .git/worktrees/
+        // In that case, go up to find the actual .git directory
+        let mut current = git_common_dir.as_path();
+        while let Some(parent) = current.parent() {
+            if current.file_name().map(|n| n == ".git").unwrap_or(false) {
+                return Ok(parent.to_path_buf());
+            }
+            current = parent;
+        }
+
+        // Fallback
+        Ok(worktree_root.to_path_buf())
+    }
+
+    /// Get the current worktree root path
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Get the main worktree root (where config is stored)
+    pub fn main_root(&self) -> &Path {
+        &self.main_root
     }
 
     /// Check if a remote exists

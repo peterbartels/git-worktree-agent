@@ -80,7 +80,7 @@ impl App {
                     SettingsField::AutoCreate => {
                         self.config.auto_create_worktrees = !self.config.auto_create_worktrees;
                         self.status.auto_create_enabled = self.config.auto_create_worktrees;
-                        let _ = self.config.save(self.repo.root());
+                        let _ = self.config.save(self.repo.main_root());
                     }
                     SettingsField::Remote => {
                         // Cycle through remotes
@@ -101,7 +101,7 @@ impl App {
                                     branches.iter().map(|b| b.name.clone()).collect();
                             }
                             let _ = self.watcher.init(&self.repo, &self.config);
-                            let _ = self.config.save(self.repo.root());
+                            let _ = self.config.save(self.repo.main_root());
                         }
                     }
                     SettingsField::BaseBranch => {
@@ -124,7 +124,7 @@ impl App {
                                 self.config.base_branch = None;
                             }
                         }
-                        let _ = self.config.save(self.repo.root());
+                        let _ = self.config.save(self.repo.main_root());
                     }
                     SettingsField::PollInterval => {
                         settings.editing = true;
@@ -147,7 +147,7 @@ impl App {
                     if self.config.poll_interval_secs > 5 {
                         self.config.poll_interval_secs -= 5;
                         self.status.poll_interval = self.config.poll_interval_secs;
-                        let _ = self.config.save(self.repo.root());
+                        let _ = self.config.save(self.repo.main_root());
                     }
                 }
             }
@@ -157,7 +157,7 @@ impl App {
                     if self.config.poll_interval_secs < 300 {
                         self.config.poll_interval_secs += 5;
                         self.status.poll_interval = self.config.poll_interval_secs;
-                        let _ = self.config.save(self.repo.root());
+                        let _ = self.config.save(self.repo.main_root());
                     }
                 }
             }

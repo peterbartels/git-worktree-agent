@@ -633,7 +633,7 @@ impl App {
         self.config.auto_create_worktrees = setup.auto_create;
 
         // Save config
-        let _ = self.config.save(self.repo.root());
+        let _ = self.config.save(self.repo.main_root());
 
         // Re-initialize watcher with new config
         let _ = self.watcher.init(&self.repo, &self.config);
@@ -652,7 +652,7 @@ impl App {
         self.setup_state = None;
 
         // Just save the default config
-        let _ = self.config.save(self.repo.root());
+        let _ = self.config.save(self.repo.main_root());
 
         // Try to initialize watcher
         if self.repo.remote_exists(&self.config.remote_name) {
