@@ -1,5 +1,11 @@
 # git-worktree-agent
 
+## 0.2.1
+
+### Patch Changes
+
+- 24a82c2: Fix npm publish by adding provenance config and bin/gwa wrapper
+
 ## 0.2.0
 
 ### Minor Changes
