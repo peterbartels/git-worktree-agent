@@ -146,9 +146,15 @@ jobs:
           sha256sum * > checksums.txt
           cd ..
           
-          # Create GitHub release with binaries
-          gh release create "v${VERSION}" binaries/* \
-            --title "v${VERSION}" \
-            --generate-notes
+          # Check if release already exists
+          if gh release view "v${VERSION}" > /dev/null 2>&1; then
+            echo "Release v${VERSION} already exists, uploading assets..."
+            gh release upload "v${VERSION}" binaries/* --clobber
+          else
+            echo "Creating release v${VERSION}..."
+            gh release create "v${VERSION}" binaries/* \
+              --title "v${VERSION}" \
+              --generate-notes
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
