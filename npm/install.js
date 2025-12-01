@@ -17,7 +17,7 @@ const BIN_NAME = "gwa";
 const VERSION = require("../package.json").version;
 
 // Skip installation in CI or development environments
-if (process.env.CI || process.env.GWM_SKIP_INSTALL) {
+if (process.env.CI || process.env.GWA_SKIP_INSTALL) {
   console.log("Skipping binary installation (CI/development mode)");
   process.exit(0);
 }

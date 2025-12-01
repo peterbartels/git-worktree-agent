@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: npm install
         env:
-          GWM_SKIP_INSTALL: "1"
+          GWA_SKIP_INSTALL: "1"
 
       - name: Create Release Pull Request or Publish
         id: changesets
