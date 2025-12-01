@@ -6,11 +6,28 @@ This document describes how to create and publish releases for `git-worktree-age
 
 This project uses [Changesets](https://github.com/changesets/changesets) for version management and automated releases. The release process is fully automated via GitHub Actions.
 
+## Architecture
+
+The npm package bundles **all platform binaries** in a single package:
+
+```
+git-worktree-agent/
+├── bin/
+│   ├── gwa           # JS wrapper (entry point)
+│   └── install.js    # Postinstall script
+└── binaries/
+    ├── gwa-linux-x64
+    ├── gwa-linux-arm64
+    ├── gwa-darwin-x64
+    ├── gwa-darwin-arm64
+    └── gwa-win32-x64.exe
+```
+
+When users install, the postinstall script copies the correct binary to `bin/gwa-binary`.
+
 ## Prerequisites
 
-Before you can publish releases, ensure the following are configured:
-
-### 1. NPM Trusted Publisher (OIDC)
+### NPM Trusted Publisher (OIDC)
 
 This project uses npm's Trusted Publisher feature with OpenID Connect (OIDC) for secure, tokenless publishing.
 
@@ -25,13 +42,9 @@ This project uses npm's Trusted Publisher feature with OpenID Connect (OIDC) for
    - **Workflow filename**: `release.yml`
    - **Environment**: (leave blank)
 
-**Repeat for each platform package** (`@gwa/linux-x64`, `@gwa/darwin-arm64`, etc.)
+### GitHub Token
 
-> **Why OIDC?** Unlike long-lived tokens, OIDC provides short-lived credentials that can't be leaked. npm can verify exactly which repository and workflow is publishing.
-
-### 2. GitHub Token
-
-The `GITHUB_TOKEN` is automatically provided by GitHub Actions. The workflow has these permissions:
+The `GITHUB_TOKEN` is automatically provided by GitHub Actions with these permissions:
 
 ```yaml
 permissions:
@@ -44,7 +57,7 @@ permissions:
 
 ### Step 1: Create a Changeset
 
-When you make changes that should be released, create a changeset:
+When you make changes that should be released:
 
 ```bash
 npx changeset
@@ -54,175 +67,130 @@ You'll be prompted to:
 
 1. **Select packages**: Choose `git-worktree-agent`
 2. **Select bump type**:
-   - `patch` - Bug fixes, minor updates (0.1.0 → 0.1.1)
-   - `minor` - New features, backwards compatible (0.1.0 → 0.2.0)
+   - `patch` - Bug fixes (0.1.0 → 0.1.1)
+   - `minor` - New features (0.1.0 → 0.2.0)
    - `major` - Breaking changes (0.1.0 → 1.0.0)
-3. **Write a summary**: Describe the change (this becomes the changelog entry)
+3. **Write a summary**: This becomes the changelog entry
 
-This creates a markdown file in `.changeset/` directory.
-
-### Step 2: Commit the Changeset
-
-Commit the changeset file with your code changes:
+### Step 2: Commit and Push
 
 ```bash
 git add .changeset/*.md
-git commit -m "feat: add new feature"
+git commit -m "feat: your feature description"
 git push
 ```
 
-### Step 3: Merge to Main
+### Step 3: What Happens Next
 
-When your PR is merged to `main`, the GitHub Action will:
+1. **GitHub Actions detects changesets** → builds binaries for all 5 platforms
+2. **Creates "Version Packages" PR** with version bump and changelog
+3. **You merge the PR** → triggers publish
+4. **Package published to npm** with all binaries
+5. **GitHub Release created** with standalone binaries
 
-1. Detect changesets in the merge
-2. Create or update a "Version Packages" PR
-3. This PR will:
-   - Bump versions based on changesets
-   - Update `CHANGELOG.md`
-   - Remove processed changeset files
-
-### Step 4: Publish the Release
-
-When you merge the "Version Packages" PR:
-
-1. The release workflow triggers
-2. Builds binaries for all platforms:
-   - Linux x64 & arm64
-   - macOS x64 & Apple Silicon (arm64)
-   - Windows x64
-3. Publishes platform-specific npm packages (`@gwa/linux-x64`, etc.)
-4. Publishes the main `git-worktree-agent` package to npm
-5. Creates a GitHub Release with:
-   - Pre-built binaries
-   - Auto-generated release notes
-   - SHA256 checksums
-
-## Package Structure
-
-The npm distribution consists of multiple packages:
-
-### Main Package
+## Release Workflow
 
 ```
-git-worktree-agent
-├── bin/gwa          # Shell script that runs the binary
-├── npm/install.js   # Post-install script that downloads the binary
-└── package.json
+Push with changeset
+       ↓
+┌──────────────────────────────────────────┐
+│  Build Binaries (parallel)               │
+│  ├── linux-x64    (ubuntu-latest)        │
+│  ├── linux-arm64  (ubuntu + cross)       │
+│  ├── darwin-x64   (macos-latest)         │
+│  ├── darwin-arm64 (macos-latest)         │
+│  └── win32-x64    (windows-latest)       │
+└──────────────────────────────────────────┘
+       ↓
+┌──────────────────────────────────────────┐
+│  Release Job                             │
+│  ├── Download all binaries               │
+│  ├── Bundle into npm package             │
+│  ├── Publish to npm (with provenance)    │
+│  └── Create GitHub Release               │
+└──────────────────────────────────────────┘
 ```
-
-### Platform Packages
-
-Each platform has its own npm package containing just the binary:
-
-- `@gwa/linux-x64`
-- `@gwa/linux-arm64`
-- `@gwa/darwin-x64`
-- `@gwa/darwin-arm64`
-- `@gwa/win32-x64`
-
-When users run `npm install -g git-worktree-agent`:
-
-1. npm installs the main package
-2. npm installs the appropriate platform package via `optionalDependencies`
-3. The `postinstall` script copies the binary to the correct location
 
 ## Manual Release (Emergency)
 
-If you need to release without changesets (requires npm login locally):
+If you need to release manually:
 
-### 1. Update Version
+### 1. Build All Binaries
+
+You'll need access to all platforms or use cross-compilation:
 
 ```bash
-# Update package.json version
+# Linux (native)
+cargo build --release
+cp target/release/gwa binaries/gwa-linux-x64
+
+# Linux ARM64 (using cross)
+cargo install cross
+cross build --release --target aarch64-unknown-linux-gnu
+cp target/aarch64-unknown-linux-gnu/release/gwa binaries/gwa-linux-arm64
+
+# macOS/Windows - need native machines or CI
+```
+
+### 2. Update Version
+
+```bash
 npm version patch  # or minor/major
-
-# Update Cargo.toml version to match
+# Also update Cargo.toml to match
 ```
 
-### 2. Build Binaries Locally
+### 3. Publish
 
 ```bash
-./scripts/build-release.sh
-```
-
-### 3. Publish Platform Packages
-
-```bash
-cd dist/npm/linux-x64
-npm publish --access public
-
-cd ../linux-arm64
-npm publish --access public
-
-# Repeat for all platforms...
-```
-
-### 4. Publish Main Package
-
-```bash
-cd /path/to/project
 npm publish --access public
 ```
 
-### 5. Create GitHub Release
+### 4. Create GitHub Release
 
 ```bash
-gh release create v0.x.x dist/* --generate-notes
+gh release create v0.x.x binaries/* --generate-notes
 ```
 
 ## Troubleshooting
 
 ### "npm ERR! 403 Forbidden"
 
-- Ensure Trusted Publisher is configured for the package on npm
-- Verify the workflow filename matches exactly (`release.yml`)
-- Check that the repository owner/name match
-- For new packages, you may need to publish manually first, then configure Trusted Publisher
+- Ensure Trusted Publisher is configured on npm
+- Verify workflow filename matches (`release.yml`)
+- For new packages, first publish manually then configure OIDC
 
 ### Build Fails for Platform
 
-- Check if the Rust target is installed
-- For cross-compilation, ensure Docker is working (required by `cross`)
-- macOS builds require a macOS runner
+- macOS builds require `macos-latest` runner
+- Linux ARM64 uses `cross` for cross-compilation
+- Check Rust target is available: `rustup target list`
 
-### Version Mismatch
+### Provenance Issues
 
-If npm and Cargo versions get out of sync:
+Ensure package.json has:
 
-1. Manually update both `package.json` and `Cargo.toml` to the same version
-2. Commit and push
-3. The next release will use the corrected version
+```json
+"publishConfig": {
+  "access": "public",
+  "provenance": true
+}
+```
 
-### Changeset Not Detected
+And workflow has:
 
-- Ensure the changeset file is in `.changeset/` directory
-- File should be a `.md` file with valid frontmatter
-- Check that the package name in the changeset matches `package.json`
-
-## CI/CD Workflows
-
-### `.github/workflows/ci.yml`
-
-Runs on every push and PR:
-- Builds the project
-- Runs tests
-- Checks formatting (`cargo fmt`)
-- Runs clippy lints
-
-### `.github/workflows/release.yml`
-
-Runs on push to `main`:
-- Creates/updates Version Packages PR (via changesets)
-- On version merge: builds binaries, publishes to npm, creates GitHub release
+```yaml
+permissions:
+  id-token: write
+env:
+  NPM_CONFIG_PROVENANCE: true
+```
 
 ## Version Strategy
 
 We follow [Semantic Versioning](https://semver.org/):
 
-- **MAJOR**: Breaking changes to CLI interface or config format
-- **MINOR**: New features, new CLI flags, backwards-compatible changes
-- **PATCH**: Bug fixes, performance improvements, documentation updates
+- **MAJOR**: Breaking changes to CLI or config format
+- **MINOR**: New features, backwards-compatible
+- **PATCH**: Bug fixes, docs, performance
 
 During initial development (0.x.x), minor versions may contain breaking changes.
-

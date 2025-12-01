@@ -12,9 +12,9 @@ gwa-debug.log
 node_modules/
 package-lock.json
 
-# Compiled binaries (downloaded by npm install)
-# Note: bin/gwa (the JS wrapper) is tracked in git
+# Compiled binaries
 bin/gwa-binary
 bin/gwa-binary.exe
+binaries/gwa-*
 
 .env
