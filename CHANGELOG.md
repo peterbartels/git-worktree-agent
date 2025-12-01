@@ -1,5 +1,11 @@
 # git-worktree-agent
 
+## 0.2.3
+
+### Patch Changes
+
+- 39308b1: Fix release workflow to always build binaries before publishing
+
 ## 0.2.2
 
 ### Patch Changes
