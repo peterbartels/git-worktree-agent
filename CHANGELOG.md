@@ -1,5 +1,12 @@
 # git-worktree-agent
 
+## 0.2.4
+
+### Patch Changes
+
+- 4149aca: Fix OIDC publishing by updating to npm 11.5.1+
+- be79bec: Retry npm publish with corrected Trusted Publisher configuration
+
 ## 0.2.3
 
 ### Patch Changes
