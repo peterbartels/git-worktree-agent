@@ -25,12 +25,12 @@ pub struct WorktreeInfo {
 }
 
 /// Manager for git worktree operations
-pub struct WorktreeManager<'a> {
+pub struct WorktreeAgent<'a> {
     repo: &'a Repository,
 }
 
-impl<'a> WorktreeManager<'a> {
-    /// Create a new worktree manager
+impl<'a> WorktreeAgent<'a> {
+    /// Create a new worktree worktree_agent
     pub fn new(repo: &'a Repository) -> Self {
         Self { repo }
     }
@@ -408,8 +408,8 @@ branch refs/heads/feature/my-feature
 
         let repo = Repository::discover(&std::env::current_dir().unwrap());
         if let Ok(repo) = repo {
-            let manager = WorktreeManager::new(&repo);
-            let worktrees = manager.parse_worktree_list(output).unwrap();
+            let worktree_agent = WorktreeAgent::new(&repo);
+            let worktrees = worktree_agent.parse_worktree_list(output).unwrap();
 
             assert_eq!(worktrees.len(), 2);
             assert_eq!(worktrees[0].branch.as_deref(), Some("main"));

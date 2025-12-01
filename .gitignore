@@ -1,20 +1,20 @@
 /target
 /dist
 
-# Per-user worktree manager config (different per developer)
-.gwm-config.json
+# Per-user worktree agent config (different per developer)
+.gwa-config.json
 
 # Logs
 *.log
-gwm-debug.log
+gwa-debug.log
 
 # Node
 node_modules/
 package-lock.json
 
 # Compiled binaries (downloaded by npm install)
-# Note: bin/gwm (the JS wrapper) is tracked in git
-bin/gwm-binary
-bin/gwm-binary.exe
+# Note: bin/gwa (the JS wrapper) is tracked in git
+bin/gwa-binary
+bin/gwa-binary.exe
 
 .env

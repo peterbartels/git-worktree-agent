@@ -1,8 +1,8 @@
 ---
-"git-worktree-manager": minor
+"git-worktree-agent": minor
 ---
 
-Initial release of git-worktree-manager (gwm)
+Initial release of git-worktree-agent (gwa)
 
 - TUI for managing git worktrees from remote branches
 - Automatic branch watching with configurable poll interval

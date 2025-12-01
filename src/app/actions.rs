@@ -4,15 +4,15 @@ use tracing::{debug, error, info};
 
 use super::App;
 use super::state::{CreateWorktreeState, ViewMode};
-use crate::git::WorktreeManager;
+use crate::git::WorktreeAgent;
 use crate::ui::BranchStatus;
 use crate::watcher::WatcherEvent;
 
 impl App {
     /// Update the branch list from current state
     pub(super) fn update_branch_list(&mut self) {
-        let manager = WorktreeManager::new(&self.repo);
-        let worktrees = manager.list().unwrap_or_default();
+        let worktree_agent = WorktreeAgent::new(&self.repo);
+        let worktrees = worktree_agent.list().unwrap_or_default();
 
         let mut items: Vec<crate::ui::BranchItem> = self
             .watcher
@@ -211,8 +211,8 @@ impl App {
     pub(super) fn update_status(&mut self) {
         self.status.remote_branch_count = self.watcher.get_known_branches().len();
         // Count worktrees from git directly
-        let manager = WorktreeManager::new(&self.repo);
-        self.status.worktree_count = manager.list().map(|w| w.len()).unwrap_or(0);
+        let worktree_agent = WorktreeAgent::new(&self.repo);
+        self.status.worktree_count = worktree_agent.list().map(|w| w.len()).unwrap_or(0);
         self.status.auto_create_enabled = self.config.auto_create_worktrees;
         self.status.poll_interval = self.config.poll_interval_secs;
     }
@@ -258,10 +258,10 @@ impl App {
             return;
         }
 
-        let manager = WorktreeManager::new(&self.repo);
+        let worktree_agent = WorktreeAgent::new(&self.repo);
 
         // Check if this is the main worktree (the one with .git)
-        if let Ok(worktrees) = manager.list() {
+        if let Ok(worktrees) = worktree_agent.list() {
             if let Some(wt) = worktrees
                 .iter()
                 .find(|w| w.branch.as_deref() == Some(&selected.name))
@@ -282,11 +282,11 @@ impl App {
 
     /// Actually perform the worktree deletion after confirmation
     pub(super) fn do_delete_worktree(&mut self, branch: &str) {
-        let manager = WorktreeManager::new(&self.repo);
+        let worktree_agent = WorktreeAgent::new(&self.repo);
 
         // Get worktree path
-        if let Ok(Some(path)) = manager.get_worktree_path(branch) {
-            if let Err(e) = manager.remove(&path, false) {
+        if let Ok(Some(path)) = worktree_agent.get_worktree_path(branch) {
+            if let Err(e) = worktree_agent.remove(&path, false) {
                 error!("Failed to remove worktree: {}", e);
                 self.status.last_error = Some(e.to_string());
             }
@@ -337,10 +337,10 @@ impl App {
             return;
         }
 
-        let manager = WorktreeManager::new(&self.repo);
+        let worktree_agent = WorktreeAgent::new(&self.repo);
 
         // Get worktree path
-        if let Ok(Some(path)) = manager.get_worktree_path(&selected.name) {
+        if let Ok(Some(path)) = worktree_agent.get_worktree_path(&selected.name) {
             // Store the path to print after exit
             self.exit_to_directory = Some(path);
             // Exit the application
@@ -382,7 +382,7 @@ impl App {
 
     /// Create a new worktree with a new branch
     pub(super) fn do_create_new_worktree(&mut self, new_branch: &str, base_branch: &str) {
-        let manager = WorktreeManager::new(&self.repo);
+        let worktree_agent = WorktreeAgent::new(&self.repo);
 
         // Get the worktree path using the same logic as existing worktrees
         let worktree_path = self
@@ -413,7 +413,7 @@ impl App {
             &format!("Creating new branch '{}' from '{}'", new_branch, base_ref),
         );
 
-        match manager.create_new_branch(new_branch, &base_ref, &worktree_path) {
+        match worktree_agent.create_new_branch(new_branch, &base_ref, &worktree_path) {
             Ok(log_messages) => {
                 for msg in log_messages {
                     self.watcher.add_command_log(new_branch, &msg);

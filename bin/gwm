@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Entry point for git-worktree-manager (gwm)
+ * Entry point for git-worktree-agent (gwa)
  * 
  * This script finds and executes the platform-specific binary.
  */
@@ -10,8 +10,8 @@ const { execFileSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
-const BIN_NAME = process.platform === "win32" ? "gwm.exe" : "gwm";
-const LOCAL_BIN_NAME = process.platform === "win32" ? "gwm-binary.exe" : "gwm-binary";
+const BIN_NAME = process.platform === "win32" ? "gwa.exe" : "gwa";
+const LOCAL_BIN_NAME = process.platform === "win32" ? "gwa-binary.exe" : "gwa-binary";
 
 // Possible binary locations
 const possiblePaths = [
@@ -29,7 +29,7 @@ const possiblePaths = [
     const variant = platformMap[platform]?.[arch];
     if (variant) {
       try {
-        const pkgPath = require.resolve(`@gwm/${variant}/package.json`);
+        const pkgPath = require.resolve(`@gwa/${variant}/package.json`);
         return path.join(path.dirname(pkgPath), BIN_NAME);
       } catch {
         return null;
@@ -49,15 +49,15 @@ for (const p of possiblePaths) {
 }
 
 if (!binaryPath) {
-  console.error("Error: Could not find gwm binary.");
+  console.error("Error: Could not find gwa binary.");
   console.error("");
   console.error("This may happen if:");
   console.error("  - The postinstall script failed to download the binary");
   console.error("  - Your platform is not supported");
   console.error("");
   console.error("You can try:");
-  console.error("  1. Reinstall: npm install -g git-worktree-manager");
-  console.error("  2. Install via cargo: cargo install git-worktree-manager");
+  console.error("  1. Reinstall: npm install -g git-worktree-agent");
+  console.error("  2. Install via cargo: cargo install git-worktree-agent");
   console.error("");
   process.exit(1);
 }

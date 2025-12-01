@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Post-install script for git-worktree-manager
+ * Post-install script for git-worktree-agent
  *
  * This script downloads and installs the appropriate binary for the current platform.
  * It's run automatically after `npm install`.
@@ -12,8 +12,8 @@ const path = require("path");
 const { execSync } = require("child_process");
 const https = require("https");
 
-const PACKAGE_NAME = "git-worktree-manager";
-const BIN_NAME = "gwm";
+const PACKAGE_NAME = "git-worktree-agent";
+const BIN_NAME = "gwa";
 const VERSION = require("../package.json").version;
 
 // Skip installation in CI or development environments
@@ -53,7 +53,7 @@ function getPlatformPackage() {
     process.exit(1);
   }
 
-  return `@gwm/${variant}`;
+  return `@gwa/${variant}`;
 }
 
 function getBinaryPath() {
@@ -102,7 +102,7 @@ async function downloadBinary() {
   }
 
   // Fallback: try to download from GitHub releases
-  const releaseUrl = `https://github.com/peterbartels/git-worktree-manager/releases/download/v${VERSION}`;
+  const releaseUrl = `https://github.com/peterbartels/git-worktree-agent/releases/download/v${VERSION}`;
   const binaryName =
     process.platform === "win32"
       ? `${BIN_NAME}-${process.platform}-${process.arch}.exe`
@@ -121,7 +121,7 @@ async function downloadBinary() {
     console.warn(`Failed to download binary: ${e.message}`);
     console.warn("");
     console.warn("The binary could not be downloaded. You can:");
-    console.warn("  1. Install manually: cargo install git-worktree-manager");
+    console.warn("  1. Install manually: cargo install git-worktree-agent");
     console.warn(`  2. Download from: ${releaseUrl}`);
     console.warn("");
     console.warn("If you're developing locally, you can build with: cargo build --release");

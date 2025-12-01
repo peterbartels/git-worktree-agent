@@ -18,14 +18,14 @@ use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitEx
 
 /// Git Worktree Manager - Manage git worktrees from remote branches
 #[derive(Parser, Debug)]
-#[command(name = "gwm")]
+#[command(name = "gwa")]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to the git repository (defaults to current directory)
     #[arg(short, long)]
     path: Option<PathBuf>,
 
-    /// Enable debug logging (writes to gwm-debug.log)
+    /// Enable debug logging (writes to gwa-debug.log)
     #[arg(short, long)]
     debug: bool,
 
@@ -76,7 +76,7 @@ fn main() -> Result<()> {
     if is_tui_mode {
         if args.debug {
             // Write debug logs to a file when running TUI
-            let log_file = std::fs::File::create(repo_path.join("gwm-debug.log"))
+            let log_file = std::fs::File::create(repo_path.join("gwa-debug.log"))
                 .expect("Failed to create log file");
             let filter = EnvFilter::new("debug");
             tracing_subscriber::registry()
@@ -222,11 +222,11 @@ fn show_startup_error(mut terminal: ratatui::DefaultTerminal, error_msg: &str) {
 
                 lines.push(Line::raw(""));
                 lines.push(Line::from(Span::styled(
-                    "Make sure you run gwm from within a git repository,",
+                    "Make sure you run gwa from within a git repository,",
                     Style::default().fg(theme_muted),
                 )));
                 lines.push(Line::from(Span::styled(
-                    "or specify the path with: gwm --path /path/to/repo",
+                    "or specify the path with: gwa --path /path/to/repo",
                     Style::default().fg(theme_muted),
                 )));
                 lines.push(Line::raw(""));
@@ -291,8 +291,8 @@ fn show_config(repo_path: &PathBuf) -> Result<()> {
     }
 
     // Show actual worktrees from git
-    let manager = git::WorktreeManager::new(&repo);
-    if let Ok(worktrees) = manager.list() {
+    let worktree_agent = git::WorktreeAgent::new(&repo);
+    if let Ok(worktrees) = worktree_agent.list() {
         println!();
         println!("Active worktrees ({}):", worktrees.len());
         for wt in &worktrees {
@@ -412,7 +412,7 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     println!();
     println!("Configuration saved to {}", config::CONFIG_FILE_NAME);
     println!();
-    println!("You can now run 'gwm' to start the TUI.");
+    println!("You can now run 'gwa' to start the TUI.");
 
     Ok(())
 }

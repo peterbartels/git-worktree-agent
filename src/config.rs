@@ -1,4 +1,4 @@
-//! Configuration management for git-worktree-manager
+//! Configuration management for git-worktree-agent
 //!
 //! Stores user preferences in a JSON file that is gitignored (since it's per-user different).
 
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// The name of the config file stored in the git repository root
-pub const CONFIG_FILE_NAME: &str = ".gwm-config.json";
+pub const CONFIG_FILE_NAME: &str = ".gwa-config.json";
 
 /// Main configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]

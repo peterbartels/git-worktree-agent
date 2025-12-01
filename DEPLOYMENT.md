@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This document describes how to create and publish releases for `git-worktree-manager`.
+This document describes how to create and publish releases for `git-worktree-agent`.
 
 ## Overview
 
@@ -21,11 +21,11 @@ This project uses npm's Trusted Publisher feature with OpenID Connect (OIDC) for
 3. Select **GitHub Actions**
 4. Enter:
    - **Repository owner**: `peterbartels`
-   - **Repository name**: `git-worktree-manager`
+   - **Repository name**: `git-worktree-agent`
    - **Workflow filename**: `release.yml`
    - **Environment**: (leave blank)
 
-**Repeat for each platform package** (`@gwm/linux-x64`, `@gwm/darwin-arm64`, etc.)
+**Repeat for each platform package** (`@gwa/linux-x64`, `@gwa/darwin-arm64`, etc.)
 
 > **Why OIDC?** Unlike long-lived tokens, OIDC provides short-lived credentials that can't be leaked. npm can verify exactly which repository and workflow is publishing.
 
@@ -52,7 +52,7 @@ npx changeset
 
 You'll be prompted to:
 
-1. **Select packages**: Choose `git-worktree-manager`
+1. **Select packages**: Choose `git-worktree-agent`
 2. **Select bump type**:
    - `patch` - Bug fixes, minor updates (0.1.0 → 0.1.1)
    - `minor` - New features, backwards compatible (0.1.0 → 0.2.0)
@@ -91,8 +91,8 @@ When you merge the "Version Packages" PR:
    - Linux x64 & arm64
    - macOS x64 & Apple Silicon (arm64)
    - Windows x64
-3. Publishes platform-specific npm packages (`@gwm/linux-x64`, etc.)
-4. Publishes the main `git-worktree-manager` package to npm
+3. Publishes platform-specific npm packages (`@gwa/linux-x64`, etc.)
+4. Publishes the main `git-worktree-agent` package to npm
 5. Creates a GitHub Release with:
    - Pre-built binaries
    - Auto-generated release notes
@@ -105,8 +105,8 @@ The npm distribution consists of multiple packages:
 ### Main Package
 
 ```
-git-worktree-manager
-├── bin/gwm          # Shell script that runs the binary
+git-worktree-agent
+├── bin/gwa          # Shell script that runs the binary
 ├── npm/install.js   # Post-install script that downloads the binary
 └── package.json
 ```
@@ -115,13 +115,13 @@ git-worktree-manager
 
 Each platform has its own npm package containing just the binary:
 
-- `@gwm/linux-x64`
-- `@gwm/linux-arm64`
-- `@gwm/darwin-x64`
-- `@gwm/darwin-arm64`
-- `@gwm/win32-x64`
+- `@gwa/linux-x64`
+- `@gwa/linux-arm64`
+- `@gwa/darwin-x64`
+- `@gwa/darwin-arm64`
+- `@gwa/win32-x64`
 
-When users run `npm install -g git-worktree-manager`:
+When users run `npm install -g git-worktree-agent`:
 
 1. npm installs the main package
 2. npm installs the appropriate platform package via `optionalDependencies`

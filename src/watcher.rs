@@ -6,7 +6,7 @@ use chrono::Utc;
 
 use crate::config::Config;
 use crate::executor::{CommandExecutor, CommandLog, CommandOutput, RunningCommand};
-use crate::git::{RemoteBranch, Repository, WorktreeManager};
+use crate::git::{RemoteBranch, Repository, WorktreeAgent};
 use color_eyre::eyre::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -232,7 +232,7 @@ impl Watcher {
 
             // Auto-create worktrees if enabled - queue them for sequential processing
             if config.auto_create_worktrees {
-                let manager = WorktreeManager::new(repo);
+                let worktree_agent = WorktreeAgent::new(repo);
 
                 for branch in &new_branches {
                     // Skip if already tracked or untracked
@@ -241,7 +241,7 @@ impl Watcher {
                     }
 
                     // Check if worktree already exists
-                    if manager.has_worktree_for_branch(branch).unwrap_or(false) {
+                    if worktree_agent.has_worktree_for_branch(branch).unwrap_or(false) {
                         continue;
                     }
 
@@ -275,8 +275,8 @@ impl Watcher {
         self.pending_branches.remove(0);
         self.current_processing = Some(branch.clone());
 
-        let manager = WorktreeManager::new(repo);
-        let _ = self.create_worktree(repo, config, &branch, &manager, event_tx);
+        let worktree_agent = WorktreeAgent::new(repo);
+        let _ = self.create_worktree(repo, config, &branch, &worktree_agent, event_tx);
     }
 
     /// Check if we're currently processing branches or have pending ones
@@ -414,14 +414,14 @@ impl Watcher {
         repo: &Repository,
         config: &mut Config,
         branch: &str,
-        manager: &WorktreeManager,
+        worktree_agent: &WorktreeAgent,
         event_tx: &mpsc::Sender<WatcherEvent>,
     ) -> Result<()> {
         let worktree_path = config.get_worktree_path(repo.root(), branch);
 
         let _ = event_tx.send(WatcherEvent::WorktreeCreating(branch.to_string()));
 
-        match manager.create(branch, &worktree_path, &config.remote_name) {
+        match worktree_agent.create(branch, &worktree_path, &config.remote_name) {
             Ok(log_messages) => {
                 // Log all the git output
                 self.add_worktree_log(branch, &log_messages);

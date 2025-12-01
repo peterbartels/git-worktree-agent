@@ -1,16 +1,16 @@
 {
-  "name": "git-worktree-manager",
+  "name": "git-worktree-agent",
   "version": "0.1.0",
   "description": "A TUI for managing git worktrees from remote branches with automatic polling and hooks",
   "author": "peterbartels <peter.bartels@deptagency.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/peterbartels/git-worktree-manager"
+    "url": "https://github.com/peterbartels/git-worktree-agent"
   },
-  "homepage": "https://github.com/peterbartels/git-worktree-manager#readme",
+  "homepage": "https://github.com/peterbartels/git-worktree-agent#readme",
   "bugs": {
-    "url": "https://github.com/peterbartels/git-worktree-manager/issues"
+    "url": "https://github.com/peterbartels/git-worktree-agent/issues"
   },
   "keywords": [
     "git",
@@ -21,7 +21,7 @@
     "automation"
   ],
   "bin": {
-    "gwm": "bin/gwm"
+    "gwa": "bin/gwa"
   },
   "files": [
     "bin",
@@ -34,11 +34,11 @@
     "release": "changeset publish"
   },
   "optionalDependencies": {
-    "@gwm/linux-x64": "0.1.0",
-    "@gwm/linux-arm64": "0.1.0",
-    "@gwm/darwin-x64": "0.1.0",
-    "@gwm/darwin-arm64": "0.1.0",
-    "@gwm/win32-x64": "0.1.0"
+    "@gwa/linux-x64": "0.1.0",
+    "@gwa/linux-arm64": "0.1.0",
+    "@gwa/darwin-x64": "0.1.0",
+    "@gwa/darwin-arm64": "0.1.0",
+    "@gwa/win32-x64": "0.1.0"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0"

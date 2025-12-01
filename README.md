@@ -1,8 +1,8 @@
-# git-worktree-manager (gwm)
+# git-worktree-agent (gwa)
 
 A terminal UI for managing git worktrees from remote branches with automatic polling and configurable hooks.
 
-[![npm version](https://img.shields.io/npm/v/git-worktree-manager.svg)](https://www.npmjs.com/package/git-worktree-manager)
+[![npm version](https://img.shields.io/npm/v/git-worktree-agent.svg)](https://www.npmjs.com/package/git-worktree-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ![Demo](docs/demo.gif)
@@ -11,24 +11,24 @@ A terminal UI for managing git worktrees from remote branches with automatic pol
 
 ### Via npm (recommended)
 
-The easiest way to install `gwm` is via npm. This works on Linux, macOS, and Windows:
+The easiest way to install `gwa` is via npm. This works on Linux, macOS, and Windows:
 
 ```bash
-npm install -g git-worktree-manager
+npm install -g git-worktree-agent
 ```
 
-After installation, the `gwm` command will be available globally:
+After installation, the `gwa` command will be available globally:
 
 ```bash
-gwm --version
+gwa --version
 ```
 
 ### Via npx (no install)
 
-You can also run `gwm` directly without installing:
+You can also run `gwa` directly without installing:
 
 ```bash
-npx git-worktree-manager
+npx git-worktree-agent
 ```
 
 ### Via Cargo
@@ -36,20 +36,20 @@ npx git-worktree-manager
 If you have Rust installed, you can install via Cargo:
 
 ```bash
-cargo install git-worktree-manager
+cargo install git-worktree-agent
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/peterbartels/git-worktree-manager
-cd git-worktree-manager
+git clone https://github.com/peterbartels/git-worktree-agent
+cd git-worktree-agent
 cargo install --path .
 ```
 
 ### Download Binary
 
-Pre-built binaries are available on the [GitHub Releases](https://github.com/peterbartels/git-worktree-manager/releases) page for:
+Pre-built binaries are available on the [GitHub Releases](https://github.com/peterbartels/git-worktree-agent/releases) page for:
 
 - Linux (x64, arm64)
 - macOS (x64, Apple Silicon)
@@ -74,12 +74,12 @@ Pre-built binaries are available on the [GitHub Releases](https://github.com/pet
 
 2. Initialize the configuration:
    ```bash
-   gwm --init
+   gwa --init
    ```
 
 3. Start the TUI:
    ```bash
-   gwm
+   gwa
    ```
 
 4. On first run, you'll be prompted to select which branches to create worktrees for.
@@ -89,9 +89,9 @@ Pre-built binaries are available on the [GitHub Releases](https://github.com/pet
 ### TUI Mode (default)
 
 ```bash
-gwm                    # Start in current directory
-gwm --path /path/to/repo  # Start in specific directory
-gwm --debug            # Enable debug logging
+gwa                    # Start in current directory
+gwa --path /path/to/repo  # Start in specific directory
+gwa --debug            # Enable debug logging
 ```
 
 ### Keyboard Shortcuts
@@ -113,24 +113,24 @@ gwm --debug            # Enable debug logging
 
 ```bash
 # Show current configuration
-gwm --show-config
+gwa --show-config
 
 # Set post-create command
-gwm --set-command "npm install"
+gwa --set-command "npm install"
 
 # Set poll interval (in seconds)
-gwm --set-poll-interval 30
+gwa --set-poll-interval 30
 
 # Enable auto-create mode
-gwm --auto-create
+gwa --auto-create
 
 # Initialize configuration interactively
-gwm --init
+gwa --init
 ```
 
 ## Configuration
 
-The configuration is stored in `.gwm-config.json` in your repository root. This file is automatically added to `.gitignore` since settings are typically per-developer.
+The configuration is stored in `.gwa-config.json` in your repository root. This file is automatically added to `.gitignore` since settings are typically per-developer.
 
 ### Example Configuration
 
@@ -187,9 +187,9 @@ By default, worktrees are created in the parent directory of your repository:
 
 ```
 projects/
-├── my-repo/              # Main repository (where you run gwm)
+├── my-repo/              # Main repository (where you run gwa)
 │   ├── .git/
-│   ├── .gwm-config.json
+│   ├── .gwa-config.json
 │   └── ...
 ├── feature-my-feature/   # Worktree for feature/my-feature
 ├── fix-important-bug/    # Worktree for fix/important-bug
@@ -273,10 +273,10 @@ cargo install cross
 
 ### "Failed to discover git repository"
 
-Make sure you're running `gwm` from within a git repository or specify the path:
+Make sure you're running `gwa` from within a git repository or specify the path:
 
 ```bash
-gwm --path /path/to/repo
+gwa --path /path/to/repo
 ```
 
 ### "Fetch failed"
@@ -300,7 +300,7 @@ ls -la ../  # Check parent directory
 Check the command is valid and the working directory exists:
 
 ```bash
-gwm --show-config  # Verify configuration
+gwa --show-config  # Verify configuration
 ```
 
 ## Contributing

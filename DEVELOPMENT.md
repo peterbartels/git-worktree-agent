@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide is for developers working on git-worktree-manager itself.
+This guide is for developers working on git-worktree-agent itself.
 
 ## Prerequisites
 
@@ -14,8 +14,8 @@ This guide is for developers working on git-worktree-manager itself.
 ### Clone and Build
 
 ```bash
-git clone https://github.com/peterbartels/git-worktree-manager
-cd git-worktree-manager
+git clone https://github.com/peterbartels/git-worktree-agent
+cd git-worktree-agent
 
 # Install dependencies and build
 cargo build
@@ -135,7 +135,7 @@ cd /tmp/test-repo
 git init
 git remote add origin https://github.com/some/repo
 
-# Run the manager
+# Run git-worktree-agent
 cargo run -- --path /tmp/test-repo --debug
 ```
 
@@ -162,7 +162,7 @@ cargo run -- --path /tmp/test-repo --debug
 
 ```bash
 cargo build --release
-# Binary at: target/release/gwm
+# Binary at: target/release/gwa
 ```
 
 ### Cross-Platform Builds
@@ -228,7 +228,7 @@ cargo run -- --debug
 
 # Via environment variable
 RUST_LOG=debug cargo run
-RUST_LOG=gwm=debug cargo run  # Just this crate
+RUST_LOG=gwa=debug cargo run  # Just this crate
 ```
 
 ### Common Issues
