@@ -5,17 +5,19 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use tracing::{debug, warn};
 
-/// Information about a remote branch
+/// Information about a branch (local or remote)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteBranch {
-    /// Full reference name (e.g., "origin/feature/my-branch")
+    /// Full reference for git commands (e.g., "origin/main" or "feature/my-branch" for local)
     pub full_ref: String,
-    /// Short branch name (e.g., "feature/my-branch")
+    /// Short branch name for display (e.g., "feature/my-branch")
     pub name: String,
-    /// Remote name (e.g., "origin")
+    /// Remote name (e.g., "origin") or empty for local branches
     pub remote: String,
     /// Commit hash the branch points to
     pub commit: String,
+    /// Whether this is a local branch
+    pub is_local: bool,
 }
 
 /// Wrapper around a git repository (uses git CLI)
@@ -87,7 +89,12 @@ impl Repository {
         // git-common-dir returns the .git directory itself
         if let Some(parent) = git_common_dir.parent() {
             // Check if this is actually a .git directory
-            if git_common_dir.ends_with(".git") || git_common_dir.file_name().map(|n| n == ".git").unwrap_or(false) {
+            if git_common_dir.ends_with(".git")
+                || git_common_dir
+                    .file_name()
+                    .map(|n| n == ".git")
+                    .unwrap_or(false)
+            {
                 return Ok(parent.to_path_buf());
             }
         }
@@ -192,8 +199,8 @@ impl Repository {
                 let full_ref = parts[0];
                 let commit = parts[1];
 
-                // Skip HEAD
-                if full_ref.ends_with("/HEAD") {
+                // Skip HEAD (can appear as "origin/HEAD" or just "origin" in short format)
+                if full_ref.ends_with("/HEAD") || full_ref == remote_name {
                     continue;
                 }
 
@@ -208,6 +215,7 @@ impl Repository {
                     name,
                     remote: remote_name.to_string(),
                     commit: commit.to_string(),
+                    is_local: false,
                 });
             }
         }
@@ -217,6 +225,49 @@ impl Repository {
             branches.len(),
             remote_name
         );
+        Ok(branches)
+    }
+
+    /// Get all local branches
+    pub fn get_local_branches(&self) -> Result<Vec<RemoteBranch>> {
+        let output = Command::new("git")
+            .args([
+                "for-each-ref",
+                "--format=%(refname:short) %(objectname:short)",
+                "refs/heads",
+            ])
+            .current_dir(&self.root)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .with_context(|| "Failed to run git for-each-ref for local branches")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            warn!("git for-each-ref failed: {}", stderr);
+            return Ok(Vec::new());
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut branches = Vec::new();
+
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let name = parts[0].to_string();
+                let commit = parts[1];
+
+                branches.push(RemoteBranch {
+                    full_ref: name.clone(), // For local branches, full_ref is same as name
+                    name,
+                    remote: String::new(),
+                    commit: commit.to_string(),
+                    is_local: true,
+                });
+            }
+        }
+
+        debug!("Found {} local branches", branches.len());
         Ok(branches)
     }
 

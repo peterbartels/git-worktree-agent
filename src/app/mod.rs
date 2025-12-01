@@ -55,6 +55,8 @@ pub struct App {
     setup_state: Option<SetupState>,
     /// Settings screen state
     settings_state: Option<SettingsState>,
+    /// Directory to print after exit (for 'o' command)
+    exit_to_directory: Option<std::path::PathBuf>,
 }
 
 impl App {
@@ -130,6 +132,7 @@ impl App {
             theme: Theme::default(),
             setup_state,
             settings_state: None,
+            exit_to_directory: None,
         };
 
         // Only update branch list if not in setup mode
@@ -140,7 +143,8 @@ impl App {
     }
 
     /// Run the application's main loop
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
+    /// Returns the directory to cd to after exit (if any)
+    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<Option<std::path::PathBuf>> {
         self.running = true;
 
         // Check if we're starting in error mode
@@ -181,7 +185,7 @@ impl App {
             self.config.save(self.repo.main_root())?;
         }
 
-        Ok(())
+        Ok(self.exit_to_directory)
     }
 
     /// Render the application
@@ -203,6 +207,11 @@ impl App {
                 let input = input.clone();
                 self.render_main(frame, area);
                 self.render_delete_confirm(frame, area, branch, input);
+            }
+            ViewMode::CreateWorktree(state) => {
+                let state = state.clone();
+                self.render_main(frame, area);
+                self.render_create_worktree(frame, area, &state);
             }
         }
     }

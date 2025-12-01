@@ -1,4 +1,4 @@
-# git-worktree-agent (gwa)
+# git-worktree-manager (gwm)
 
 A terminal UI for managing git worktrees from remote branches with automatic polling and configurable hooks.
 
@@ -19,20 +19,20 @@ A terminal UI for managing git worktrees from remote branches with automatic pol
 ### Via npm (recommended)
 
 ```bash
-npm install -g git-worktree-agent
+npm install -g git-worktree-manager
 ```
 
 ### Via Cargo
 
 ```bash
-cargo install git-worktree-agent
+cargo install git-worktree-manager
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/peterbartels/git-worktree-agent
-cd git-worktree-agent
+git clone https://github.com/peterbartels/git-worktree-manager
+cd git-worktree-manager
 cargo install --path .
 ```
 
@@ -45,12 +45,12 @@ cargo install --path .
 
 2. Initialize the configuration:
    ```bash
-   gwa --init
+   gwm --init
    ```
 
 3. Start the TUI:
    ```bash
-   gwa
+   gwm
    ```
 
 4. On first run, you'll be prompted to select which branches to create worktrees for.
@@ -60,9 +60,9 @@ cargo install --path .
 ### TUI Mode (default)
 
 ```bash
-gwa                    # Start in current directory
-gwa --path /path/to/repo  # Start in specific directory
-gwa --debug            # Enable debug logging
+gwm                    # Start in current directory
+gwm --path /path/to/repo  # Start in specific directory
+gwm --debug            # Enable debug logging
 ```
 
 ### Keyboard Shortcuts
@@ -84,24 +84,24 @@ gwa --debug            # Enable debug logging
 
 ```bash
 # Show current configuration
-gwa --show-config
+gwm --show-config
 
 # Set post-create command
-gwa --set-command "npm install"
+gwm --set-command "npm install"
 
 # Set poll interval (in seconds)
-gwa --set-poll-interval 30
+gwm --set-poll-interval 30
 
 # Enable auto-create mode
-gwa --auto-create
+gwm --auto-create
 
 # Initialize configuration interactively
-gwa --init
+gwm --init
 ```
 
 ## Configuration
 
-The configuration is stored in `.gwa-config.json` in your repository root. This file is automatically added to `.gitignore` since settings are typically per-developer.
+The configuration is stored in `.gwm-config.json` in your repository root. This file is automatically added to `.gitignore` since settings are typically per-developer.
 
 ### Example Configuration
 
@@ -158,9 +158,9 @@ By default, worktrees are created in the parent directory of your repository:
 
 ```
 projects/
-├── my-repo/              # Main repository (where you run gwa)
+├── my-repo/              # Main repository (where you run gwm)
 │   ├── .git/
-│   ├── .gwa-config.json
+│   ├── .gwm-config.json
 │   └── ...
 ├── feature-my-feature/   # Worktree for feature/my-feature
 ├── fix-important-bug/    # Worktree for fix/important-bug
@@ -244,10 +244,10 @@ cargo install cross
 
 ### "Failed to discover git repository"
 
-Make sure you're running `gwa` from within a git repository or specify the path:
+Make sure you're running `gwm` from within a git repository or specify the path:
 
 ```bash
-gwa --path /path/to/repo
+gwm --path /path/to/repo
 ```
 
 ### "Fetch failed"
@@ -271,7 +271,7 @@ ls -la ../  # Check parent directory
 Check the command is valid and the working directory exists:
 
 ```bash
-gwa --show-config  # Verify configuration
+gwm --show-config  # Verify configuration
 ```
 
 ## Contributing

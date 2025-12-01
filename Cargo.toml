@@ -1,16 +1,16 @@
 [package]
-name = "git-worktree-agent"
+name = "git-worktree-manager"
 version = "0.1.0"
 description = "A TUI for managing git worktrees from remote branches with automatic polling and hooks"
 authors = ["peterbartels <peter.bartels@deptagency.com>"]
 license = "MIT"
 edition = "2024"
-repository = "https://github.com/peterbartels/git-worktree-agent"
+repository = "https://github.com/peterbartels/git-worktree-manager"
 keywords = ["git", "worktree", "tui", "ratatui"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
-name = "gwa"
+name = "gwm"
 path = "src/main.rs"
 
 [dependencies]

@@ -10,9 +10,9 @@
 set -e
 
 VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
-BIN_NAME="gwa"
+BIN_NAME="gwm"
 
-echo "Building git-worktree-agent v${VERSION}"
+echo "Building git-worktree-manager v${VERSION}"
 echo "======================================="
 
 # Create output directory
@@ -63,7 +63,7 @@ create_npm_package() {
     local target=$3
     local binary_suffix=$4
     
-    local pkg_name="@gwa/${platform}-${arch}"
+    local pkg_name="@gwm/${platform}-${arch}"
     local pkg_dir="dist/npm/${platform}-${arch}"
     
     mkdir -p "$pkg_dir"
@@ -82,7 +82,7 @@ create_npm_package() {
 {
   "name": "${pkg_name}",
   "version": "${VERSION}",
-  "description": "Platform-specific binary for git-worktree-agent (${platform}-${arch})",
+  "description": "Platform-specific binary for git-worktree-manager (${platform}-${arch})",
   "os": ["${platform}"],
   "cpu": ["${arch}"],
   "main": "${BIN_NAME}${binary_suffix}",

@@ -25,8 +25,6 @@ pub enum BranchStatus {
     Creating,
     /// Running hook
     RunningHook,
-    /// Explicitly untracked
-    Untracked,
 }
 
 /// A branch item for display
@@ -93,6 +91,12 @@ impl BranchListState {
         self.selected().map(|item| item.name.clone())
     }
 
+    pub fn select_by_name(&mut self, name: &str) {
+        if let Some(idx) = self.items.iter().position(|item| item.name == name) {
+            self.list_state.select(Some(idx));
+        }
+    }
+
     pub fn update_items(&mut self, items: Vec<BranchItem>) {
         // Remember the selected branch name before updating
         let selected_branch_name = self.selected_branch();
@@ -138,7 +142,6 @@ impl<'a> BranchListWidget<'a> {
             BranchStatus::Queued => ("◷", Style::default().fg(self.theme.warning)),
             BranchStatus::Creating => ("◔", Style::default().fg(self.theme.primary)),
             BranchStatus::RunningHook => ("⟳", Style::default().fg(self.theme.secondary)),
-            BranchStatus::Untracked => ("○", Style::default().fg(self.theme.muted)),
         }
     }
 }
@@ -180,9 +183,6 @@ impl StatefulWidget for BranchListWidget<'_> {
                     ),
                     BranchStatus::LocalPrunable => {
                         Span::styled(" (prunable)", Style::default().fg(self.theme.warning))
-                    }
-                    BranchStatus::Untracked => {
-                        Span::styled(" (untracked)", Style::default().fg(self.theme.muted))
                     }
                     _ => Span::raw(""),
                 };

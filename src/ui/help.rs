@@ -82,9 +82,11 @@ impl Widget for HelpWidget<'_> {
                     .fg(self.theme.secondary)
                     .add_modifier(Modifier::BOLD),
             )),
-            self.render_keybinding("Enter", "Create worktree for branch"),
-            self.render_keybinding("d", "Delete/untrack worktree"),
-            self.render_keybinding("t", "Toggle track/untrack branch"),
+            self.render_keybinding("Enter", "Checkout remote branch"),
+            self.render_keybinding("c", "Create new branch worktree"),
+            self.render_keybinding("o", "Exit & show cd command"),
+            self.render_keybinding("d", "Delete worktree"),
+            self.render_keybinding("u", "Untrack branch (hide)"),
             self.render_keybinding("r", "Refresh (fetch from remote)"),
             self.render_keybinding("a", "Toggle auto-create mode"),
             Line::raw(""),
@@ -106,6 +108,11 @@ impl Widget for HelpWidget<'_> {
                     .add_modifier(Modifier::BOLD),
             )),
             self.render_keybinding("Shift+drag", "Select text"),
+            Line::raw(""),
+            Line::from(Span::styled(
+                "Untracked branches can be restored in settings",
+                Style::default().fg(self.theme.muted),
+            )),
         ];
 
         let paragraph = Paragraph::new(lines);

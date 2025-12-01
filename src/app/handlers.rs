@@ -3,7 +3,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 
 use super::App;
-use super::state::ViewMode;
+use super::state::{CreateWorktreeStep, ViewMode};
 
 impl App {
     /// Handle key events
@@ -16,6 +16,7 @@ impl App {
             ViewMode::Setup => self.handle_setup_keys(key),
             ViewMode::Settings => self.handle_settings_keys(key),
             ViewMode::DeleteConfirm { .. } => self.handle_delete_confirm_keys(key),
+            ViewMode::CreateWorktree(_) => self.handle_create_worktree_keys(key),
         }
     }
 
@@ -93,8 +94,8 @@ impl App {
             (_, KeyCode::Char('d')) => {
                 self.delete_selected_worktree();
             }
-            (_, KeyCode::Char('t')) => {
-                self.toggle_track_selected();
+            (_, KeyCode::Char('u')) => {
+                self.untrack_selected();
             }
             (_, KeyCode::Char('r')) => {
                 self.do_poll();
@@ -104,6 +105,12 @@ impl App {
             }
             (_, KeyCode::Char('s')) => {
                 self.open_settings();
+            }
+            (_, KeyCode::Char('c')) => {
+                self.open_create_worktree();
+            }
+            (_, KeyCode::Char('o')) => {
+                self.open_selected_worktree();
             }
             _ => {}
         }
@@ -180,6 +187,107 @@ impl App {
                 self.view_mode = ViewMode::DeleteConfirm { branch, input };
             }
             _ => {}
+        }
+    }
+
+    /// Handle keys in create worktree dialog (2-step wizard)
+    pub(super) fn handle_create_worktree_keys(&mut self, key: KeyEvent) {
+        // Extract state from view mode
+        let mut state = match &self.view_mode {
+            ViewMode::CreateWorktree(state) => state.clone(),
+            _ => return,
+        };
+
+        match state.step {
+            CreateWorktreeStep::SelectBaseBranch => {
+                match key.code {
+                    // Escape to cancel
+                    KeyCode::Esc => {
+                        self.view_mode = ViewMode::Main;
+                    }
+
+                    // Arrow keys navigate the list
+                    KeyCode::Up => {
+                        if state.selected_base_index > 0 {
+                            state.selected_base_index -= 1;
+                        }
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+                    KeyCode::Down => {
+                        let filtered_count = state.filtered_branches().len();
+                        if state.selected_base_index + 1 < filtered_count {
+                            state.selected_base_index += 1;
+                        }
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+
+                    // Backspace removes from filter
+                    KeyCode::Backspace => {
+                        state.base_branch_filter.pop();
+                        state.on_filter_changed();
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+
+                    // Enter or Tab moves to next step
+                    KeyCode::Enter | KeyCode::Tab => {
+                        if state.next_step() {
+                            self.view_mode = ViewMode::CreateWorktree(state);
+                        }
+                    }
+
+                    // Typing filters the list
+                    KeyCode::Char(c) => {
+                        state.base_branch_filter.push(c);
+                        state.on_filter_changed();
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+
+                    _ => {}
+                }
+            }
+
+            CreateWorktreeStep::EnterBranchName => {
+                match key.code {
+                    // Escape goes back to step 1
+                    KeyCode::Esc => {
+                        state.prev_step();
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+
+                    // Backspace removes from branch name (or goes back if empty)
+                    KeyCode::Backspace => {
+                        if state.new_branch_name.is_empty() {
+                            state.prev_step();
+                        } else {
+                            state.new_branch_name.pop();
+                        }
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+
+                    // Enter creates the worktree
+                    KeyCode::Enter => {
+                        if !state.new_branch_name.is_empty() {
+                            if let Some(base_branch) = &state.selected_base {
+                                let new_branch = state.new_branch_name.clone();
+                                let base = base_branch.clone();
+                                self.view_mode = ViewMode::Main;
+                                self.do_create_new_worktree(&new_branch, &base);
+                            }
+                        }
+                    }
+
+                    // Typing adds to branch name
+                    KeyCode::Char(c) => {
+                        // Allow valid branch name characters
+                        if c.is_alphanumeric() || c == '-' || c == '_' || c == '/' || c == '.' {
+                            state.new_branch_name.push(c);
+                        }
+                        self.view_mode = ViewMode::CreateWorktree(state);
+                    }
+
+                    _ => {}
+                }
+            }
         }
     }
 }

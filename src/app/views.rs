@@ -5,10 +5,11 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 
 use super::App;
+use super::state::{CreateWorktreeState, CreateWorktreeStep};
 use crate::ui::{BranchListWidget, BranchLogWidget, ScrollableLogsWidget, StatusWidget};
 
 impl App {
@@ -70,16 +71,16 @@ impl App {
         let hint = Line::from(vec![
             Span::styled(" ↑/↓", Style::default().fg(self.theme.primary)),
             Span::styled(" nav ", Style::default().fg(self.theme.muted)),
-            Span::styled("j/k", Style::default().fg(self.theme.primary)),
-            Span::styled(" scroll ", Style::default().fg(self.theme.muted)),
             Span::styled("Enter", Style::default().fg(self.theme.primary)),
-            Span::styled(" create ", Style::default().fg(self.theme.muted)),
+            Span::styled(" checkout ", Style::default().fg(self.theme.muted)),
+            Span::styled("c", Style::default().fg(self.theme.primary)),
+            Span::styled(" new ", Style::default().fg(self.theme.muted)),
+            Span::styled("o", Style::default().fg(self.theme.primary)),
+            Span::styled(" cd ", Style::default().fg(self.theme.muted)),
             Span::styled("d", Style::default().fg(self.theme.primary)),
             Span::styled(" del ", Style::default().fg(self.theme.muted)),
-            Span::styled("t", Style::default().fg(self.theme.primary)),
-            Span::styled(" track ", Style::default().fg(self.theme.muted)),
-            Span::styled("s", Style::default().fg(self.theme.primary)),
-            Span::styled(" settings ", Style::default().fg(self.theme.muted)),
+            Span::styled("u", Style::default().fg(self.theme.primary)),
+            Span::styled(" hide ", Style::default().fg(self.theme.muted)),
             Span::styled("?", Style::default().fg(self.theme.primary)),
             Span::styled(" help ", Style::default().fg(self.theme.muted)),
             Span::styled("q", Style::default().fg(self.theme.primary)),
@@ -243,5 +244,269 @@ impl App {
 
         let paragraph = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
         frame.render_widget(paragraph, inner);
+    }
+
+    /// Render create worktree dialog (2-step wizard)
+    pub(super) fn render_create_worktree(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        state: &CreateWorktreeState,
+    ) {
+        match state.step {
+            CreateWorktreeStep::SelectBaseBranch => {
+                self.render_create_worktree_step1(frame, area, state);
+            }
+            CreateWorktreeStep::EnterBranchName => {
+                self.render_create_worktree_step2(frame, area, state);
+            }
+        }
+    }
+
+    /// Step 1: Select base branch (with search)
+    fn render_create_worktree_step1(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        state: &CreateWorktreeState,
+    ) {
+        let popup_width = 60.min(area.width.saturating_sub(4));
+        let popup_height = 18.min(area.height.saturating_sub(4));
+
+        let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+        let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+
+        let popup_area = Rect {
+            x: area.x + popup_x,
+            y: area.y + popup_y,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        frame.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(self.theme.secondary))
+            .title(Span::styled(
+                " Create Worktree (1/2) ",
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            ));
+
+        let inner = block.inner(popup_area);
+        frame.render_widget(block, popup_area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Title
+                Constraint::Length(1), // Spacing
+                Constraint::Length(1), // Filter input
+                Constraint::Length(1), // Spacing
+                Constraint::Min(5),    // Branch list
+                Constraint::Length(2), // Instructions
+            ])
+            .split(inner);
+
+        // Title
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "Select base branch to checkout from:",
+                Style::default().fg(self.theme.fg),
+            ))),
+            chunks[0],
+        );
+
+        // Filter input with count and placeholder
+        let filtered_branches = state.filtered_branches();
+        let filter_count = if state.base_branch_filter.is_empty() {
+            format!("{} branches", filtered_branches.len())
+        } else {
+            format!(
+                "{}/{} matching",
+                filtered_branches.len(),
+                state.base_branches.len()
+            )
+        };
+
+        // Show placeholder when filter is empty
+        let filter_display = if state.base_branch_filter.is_empty() {
+            if let Some(ref default) = state.default_branch {
+                format!("default ({})", default)
+            } else {
+                String::new()
+            }
+        } else {
+            state.base_branch_filter.clone()
+        };
+
+        let filter_style = if state.base_branch_filter.is_empty() {
+            Style::default().fg(self.theme.muted)
+        } else {
+            Style::default().fg(self.theme.fg)
+        };
+
+        let filter_line = Line::from(vec![
+            Span::styled("🔍 ", Style::default().fg(self.theme.primary)),
+            Span::styled(filter_display, filter_style),
+            Span::styled("█", Style::default().fg(self.theme.primary)),
+            Span::styled(
+                format!("  ({})", filter_count),
+                Style::default().fg(self.theme.muted),
+            ),
+        ]);
+        frame.render_widget(Paragraph::new(filter_line), chunks[2]);
+
+        // Branch list
+        let visible_items: usize = chunks[4].height as usize;
+        let start_idx = if state.selected_base_index >= visible_items {
+            state.selected_base_index - visible_items + 1
+        } else {
+            0
+        };
+
+        let items: Vec<ListItem> = filtered_branches
+            .iter()
+            .enumerate()
+            .skip(start_idx)
+            .take(visible_items)
+            .map(|(i, branch)| {
+                let is_selected = i == state.selected_base_index;
+                let style = if is_selected {
+                    Style::default()
+                        .fg(self.theme.primary)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.theme.muted)
+                };
+
+                let prefix = if is_selected { "▸ " } else { "  " };
+                ListItem::new(Line::from(Span::styled(
+                    format!("{}{}", prefix, branch),
+                    style,
+                )))
+            })
+            .collect();
+
+        if items.is_empty() {
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    "  No matching branches",
+                    Style::default().fg(self.theme.warning),
+                ))),
+                chunks[4],
+            );
+        } else {
+            frame.render_widget(List::new(items), chunks[4]);
+        }
+
+        // Instructions
+        let instructions = Line::from(vec![
+            Span::styled("Type", Style::default().fg(self.theme.primary)),
+            Span::styled(" filter  ", Style::default().fg(self.theme.muted)),
+            Span::styled("↑↓", Style::default().fg(self.theme.primary)),
+            Span::styled(" select  ", Style::default().fg(self.theme.muted)),
+            Span::styled("Enter", Style::default().fg(self.theme.primary)),
+            Span::styled(" next  ", Style::default().fg(self.theme.muted)),
+            Span::styled("Esc", Style::default().fg(self.theme.primary)),
+            Span::styled(" cancel", Style::default().fg(self.theme.muted)),
+        ]);
+        frame.render_widget(
+            Paragraph::new(instructions).alignment(ratatui::layout::Alignment::Center),
+            chunks[5],
+        );
+    }
+
+    /// Step 2: Enter new branch name
+    fn render_create_worktree_step2(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        state: &CreateWorktreeState,
+    ) {
+        let popup_width = 60.min(area.width.saturating_sub(4));
+        let popup_height = 10.min(area.height.saturating_sub(4));
+
+        let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+        let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+
+        let popup_area = Rect {
+            x: area.x + popup_x,
+            y: area.y + popup_y,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        frame.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(self.theme.secondary))
+            .title(Span::styled(
+                " Create Worktree (2/2) ",
+                Style::default()
+                    .fg(self.theme.secondary)
+                    .add_modifier(Modifier::BOLD),
+            ));
+
+        let inner = block.inner(popup_area);
+        frame.render_widget(block, popup_area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Base branch info
+                Constraint::Length(1), // Spacing
+                Constraint::Length(1), // Label
+                Constraint::Length(1), // Input
+                Constraint::Min(1),    // Spacing
+                Constraint::Length(2), // Instructions
+            ])
+            .split(inner);
+
+        // Show selected base branch
+        let base_branch = state.selected_base.as_deref().unwrap_or("(none)");
+        frame.render_widget(
+            Paragraph::new(Line::from(vec![
+                Span::styled("From: ", Style::default().fg(self.theme.muted)),
+                Span::styled(
+                    base_branch,
+                    Style::default()
+                        .fg(self.theme.secondary)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ])),
+            chunks[0],
+        );
+
+        // Label
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "Enter new branch name:",
+                Style::default().fg(self.theme.fg),
+            ))),
+            chunks[2],
+        );
+
+        // Input
+        let input_line = Line::from(vec![
+            Span::styled(&state.new_branch_name, Style::default().fg(self.theme.fg)),
+            Span::styled("█", Style::default().fg(self.theme.primary)),
+        ]);
+        frame.render_widget(Paragraph::new(input_line), chunks[3]);
+
+        // Instructions
+        let instructions = Line::from(vec![
+            Span::styled("Enter", Style::default().fg(self.theme.primary)),
+            Span::styled(" create  ", Style::default().fg(self.theme.muted)),
+            Span::styled("Esc/Backspace", Style::default().fg(self.theme.primary)),
+            Span::styled(" back", Style::default().fg(self.theme.muted)),
+        ]);
+        frame.render_widget(
+            Paragraph::new(instructions).alignment(ratatui::layout::Alignment::Center),
+            chunks[5],
+        );
     }
 }

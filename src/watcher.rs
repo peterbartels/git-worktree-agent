@@ -70,10 +70,21 @@ impl Watcher {
 
     /// Initialize with current remote branches
     pub fn init(&mut self, repo: &Repository, config: &Config) -> Result<()> {
-        let branches = repo.get_remote_branches(&config.remote_name)?;
-        for branch in branches {
+        // Get remote branches
+        let remote_branches = repo.get_remote_branches(&config.remote_name)?;
+        for branch in remote_branches {
             self.known_branches.insert(branch.name.clone(), branch);
         }
+
+        // Get local branches
+        let local_branches = repo.get_local_branches()?;
+        for branch in local_branches {
+            // Only add if not already present (remote branch takes precedence)
+            if !self.known_branches.contains_key(&branch.name) {
+                self.known_branches.insert(branch.name.clone(), branch);
+            }
+        }
+
         debug!(
             "Initialized watcher with {} known branches",
             self.known_branches.len()
@@ -172,7 +183,7 @@ impl Watcher {
         config.last_fetch = Some(Utc::now());
 
         // Get current remote branches
-        let current_branches = match repo.get_remote_branches(&config.remote_name) {
+        let remote_branches = match repo.get_remote_branches(&config.remote_name) {
             Ok(branches) => branches,
             Err(e) => {
                 error!("Failed to get remote branches: {}", e);
@@ -180,10 +191,13 @@ impl Watcher {
             }
         };
 
+        // Get current local branches
+        let local_branches = repo.get_local_branches().unwrap_or_default();
+
         let mut new_branches = Vec::new();
 
-        // Find new branches
-        for branch in &current_branches {
+        // Find new remote branches
+        for branch in &remote_branches {
             if !self.known_branches.contains_key(&branch.name) {
                 // This is a new branch
                 if !config.should_ignore_branch(&branch.name) {
@@ -194,9 +208,22 @@ impl Watcher {
             }
         }
 
+        // Add local branches (only if not already tracked as remote)
+        for branch in &local_branches {
+            if !self.known_branches.contains_key(&branch.name) {
+                self.known_branches
+                    .insert(branch.name.clone(), branch.clone());
+            }
+        }
+
+        // Build set of all current branch names (remote + local)
+        let mut current_names: std::collections::HashSet<String> =
+            remote_branches.iter().map(|b| b.name.clone()).collect();
+        for branch in &local_branches {
+            current_names.insert(branch.name.clone());
+        }
+
         // Remove branches that no longer exist
-        let current_names: std::collections::HashSet<_> =
-            current_branches.iter().map(|b| &b.name).collect();
         self.known_branches
             .retain(|name, _| current_names.contains(name));
 
@@ -452,9 +479,43 @@ impl Watcher {
         Ok(())
     }
 
-    /// Get all known remote branches
+    /// Start a hook for a manually created worktree (not through the normal queue)
+    pub fn start_hook(
+        &mut self,
+        branch: String,
+        command: String,
+        worktree_path: std::path::PathBuf,
+        event_tx: mpsc::Sender<WatcherEvent>,
+    ) {
+        if let Err(e) = self.run_hook(&branch, &command, &worktree_path, &event_tx) {
+            tracing::error!("Failed to start hook for {}: {}", branch, e);
+        }
+    }
+
+    /// Get all known branches (both local and remote)
     pub fn get_known_branches(&self) -> Vec<&RemoteBranch> {
         self.known_branches.values().collect()
+    }
+
+    /// Get a specific branch by name
+    pub fn get_branch_by_name(&self, name: &str) -> Option<&RemoteBranch> {
+        self.known_branches.get(name)
+    }
+
+    /// Add a new local branch to the known branches list
+    pub fn add_local_branch(&mut self, name: &str) {
+        if !self.known_branches.contains_key(name) {
+            self.known_branches.insert(
+                name.to_string(),
+                RemoteBranch {
+                    full_ref: name.to_string(),
+                    name: name.to_string(),
+                    remote: String::new(),
+                    commit: String::new(), // We don't have the commit hash readily available
+                    is_local: true,
+                },
+            );
+        }
     }
 
     /// Add a log entry for fetch output (warnings/errors)
@@ -498,6 +559,12 @@ impl Watcher {
         }
         log.add_output(CommandOutput::Exit(0));
 
+        self.command_logs.push(log);
+    }
+
+    /// Add a single log message for a branch (just the command header, no output)
+    pub fn add_command_log(&mut self, branch: &str, message: &str) {
+        let log = CommandLog::new(branch.to_string(), message.to_string());
         self.command_logs.push(log);
     }
 }

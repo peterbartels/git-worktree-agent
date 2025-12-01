@@ -3,7 +3,7 @@
 use tracing::{debug, error, info};
 
 use super::App;
-use super::state::ViewMode;
+use super::state::{CreateWorktreeState, ViewMode};
 use crate::git::WorktreeManager;
 use crate::ui::BranchStatus;
 use crate::watcher::WatcherEvent;
@@ -18,6 +18,8 @@ impl App {
             .watcher
             .get_known_branches()
             .iter()
+            // Filter out ignored branches - they don't appear in the list
+            .filter(|branch| !self.config.should_ignore_branch(&branch.name))
             .map(|branch| {
                 let existing_worktree = worktrees
                     .iter()
@@ -33,8 +35,6 @@ impl App {
                     }
                 } else if self.watcher.is_pending(&branch.name) {
                     BranchStatus::Queued
-                } else if self.config.is_ignored(&branch.name) {
-                    BranchStatus::Untracked
                 } else if let Some(wt) = existing_worktree {
                     // Check if hook is running for this worktree
                     if self.watcher.has_running_hook(&branch.name) {
@@ -295,17 +295,14 @@ impl App {
         self.update_branch_list();
     }
 
-    /// Toggle ignore for the selected branch
-    pub(super) fn toggle_track_selected(&mut self) {
+    /// Untrack (ignore) the selected branch - removes it from the list
+    pub(super) fn untrack_selected(&mut self) {
         let Some(selected) = self.branch_list_state.selected().cloned() else {
             return;
         };
 
-        if self.config.is_ignored(&selected.name) {
-            self.config.unignore_branch(&selected.name);
-        } else {
-            self.config.ignore_branch(&selected.name);
-        }
+        // Add to ignore list
+        self.config.ignore_branch(&selected.name);
 
         if let Err(e) = self.config.save(self.repo.main_root()) {
             error!("Failed to save config: {}", e);
@@ -321,6 +318,134 @@ impl App {
 
         if let Err(e) = self.config.save(self.repo.main_root()) {
             error!("Failed to save config: {}", e);
+        }
+    }
+
+    /// Open the selected worktree directory and exit
+    /// After exiting, the path will be printed so user can cd to it
+    pub(super) fn open_selected_worktree(&mut self) {
+        let Some(selected) = self.branch_list_state.selected().cloned() else {
+            return;
+        };
+
+        // Only works for local worktrees
+        if !matches!(
+            selected.status,
+            BranchStatus::LocalActive | BranchStatus::LocalPrunable
+        ) {
+            self.status.last_error = Some("No worktree exists for this branch".to_string());
+            return;
+        }
+
+        let manager = WorktreeManager::new(&self.repo);
+
+        // Get worktree path
+        if let Ok(Some(path)) = manager.get_worktree_path(&selected.name) {
+            // Store the path to print after exit
+            self.exit_to_directory = Some(path);
+            // Exit the application
+            self.running = false;
+        } else {
+            self.status.last_error = Some("Could not find worktree path".to_string());
+        }
+    }
+
+    /// Open the create new worktree dialog
+    pub(super) fn open_create_worktree(&mut self) {
+        // Get list of branches that can be used as base
+        let mut base_branches = Vec::new();
+        let default_branch = self.config.base_branch.clone();
+
+        // Add default branch first if it exists
+        if let Some(ref default) = default_branch {
+            base_branches.push(default.clone());
+        }
+
+        // Add all other known branches (both local and remote)
+        for branch in self.watcher.get_known_branches() {
+            // Skip if already added as default
+            if Some(&branch.name) != default_branch.as_ref() {
+                base_branches.push(branch.name.clone());
+            }
+        }
+
+        // If no branches found, can't create
+        if base_branches.is_empty() {
+            self.status.last_error = Some("No base branches available".to_string());
+            return;
+        }
+
+        // Create state with default branch info for placeholder
+        let state = CreateWorktreeState::new(base_branches, default_branch.as_deref());
+        self.view_mode = ViewMode::CreateWorktree(state);
+    }
+
+    /// Create a new worktree with a new branch
+    pub(super) fn do_create_new_worktree(&mut self, new_branch: &str, base_branch: &str) {
+        let manager = WorktreeManager::new(&self.repo);
+
+        // Get the worktree path using the same logic as existing worktrees
+        let worktree_path = self
+            .config
+            .get_worktree_path(self.repo.main_root(), new_branch);
+
+        // Determine the full ref for the base branch
+        // If it's a remote branch, use origin/branch, otherwise use just the branch name
+        let base_ref = if let Some(branch_info) = self.watcher.get_branch_by_name(base_branch) {
+            if branch_info.is_local {
+                base_branch.to_string()
+            } else {
+                branch_info.full_ref.clone()
+            }
+        } else {
+            // Default to remote ref if not found
+            format!("{}/{}", self.config.remote_name, base_branch)
+        };
+
+        info!(
+            "Creating new worktree: {} from {} at {:?}",
+            new_branch, base_ref, worktree_path
+        );
+
+        // Add to command logs
+        self.watcher.add_command_log(
+            new_branch,
+            &format!("Creating new branch '{}' from '{}'", new_branch, base_ref),
+        );
+
+        match manager.create_new_branch(new_branch, &base_ref, &worktree_path) {
+            Ok(log_messages) => {
+                for msg in log_messages {
+                    self.watcher.add_command_log(new_branch, &msg);
+                }
+
+                // Add the new branch to known branches so it shows up immediately
+                self.watcher.add_local_branch(new_branch);
+
+                // Update the branch list first, then select the new branch
+                self.update_branch_list();
+                self.branch_list_state.select_by_name(new_branch);
+                self.update_status();
+
+                // Run post-create command if configured
+                if let Some(ref command) = self.config.post_create_command {
+                    self.watcher.add_command_log(
+                        new_branch,
+                        &format!("Running post-create hook: {}", command),
+                    );
+                    self.watcher.start_hook(
+                        new_branch.to_string(),
+                        command.clone(),
+                        worktree_path,
+                        self.event_tx.clone(),
+                    );
+                }
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to create worktree: {}", e);
+                self.watcher.add_command_log(new_branch, &error_msg);
+                self.status.last_error = Some(error_msg);
+            }
         }
     }
 }

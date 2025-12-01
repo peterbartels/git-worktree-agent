@@ -225,6 +225,102 @@ impl<'a> WorktreeManager<'a> {
         Ok(log_messages)
     }
 
+    /// Create a new worktree with a new branch from a base branch
+    /// This is for creating brand new branches, not tracking remote branches
+    pub fn create_new_branch(
+        &self,
+        new_branch: &str,
+        base_branch: &str,
+        path: &Path,
+    ) -> Result<Vec<String>> {
+        info!(
+            "Creating worktree with new branch '{}' from '{}' at: {}",
+            new_branch,
+            base_branch,
+            path.display()
+        );
+
+        let mut log_messages = Vec::new();
+        log_messages.push(format!("Creating worktree at: {}", path.display()));
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create parent directory: {}", parent.display())
+            })?;
+        }
+
+        // Check if worktree already exists
+        if path.exists() {
+            return Err(eyre!("Worktree path already exists: {}", path.display()));
+        }
+
+        // Check if new branch already exists locally
+        if self.local_branch_exists(new_branch) {
+            return Err(eyre!("Branch '{}' already exists locally", new_branch));
+        }
+
+        // Create worktree with new branch from base
+        log_messages.push(format!(
+            "$ git worktree add -b {} {} {}",
+            new_branch,
+            path.display(),
+            base_branch
+        ));
+
+        let output = Command::new("git")
+            .args([
+                "worktree",
+                "add",
+                "-b",
+                new_branch,
+                path.to_string_lossy().as_ref(),
+                base_branch,
+            ])
+            .current_dir(self.repo.root())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .with_context(|| "Failed to run git worktree add")?;
+
+        // Capture all output
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        for line in stdout.lines().chain(stderr.lines()) {
+            if !line.trim().is_empty() {
+                log_messages.push(line.to_string());
+            }
+        }
+
+        if !output.status.success() {
+            log_messages.push(format!(
+                "ERROR: git worktree add failed (exit code: {})",
+                output.status.code().unwrap_or(-1)
+            ));
+            return Err(eyre!("git worktree add failed: {}", stderr));
+        }
+
+        // Verify the directory was actually created
+        if !path.exists() {
+            log_messages.push(format!(
+                "ERROR: Directory was not created at {}",
+                path.display()
+            ));
+            return Err(eyre!(
+                "Worktree directory was not created: {}",
+                path.display()
+            ));
+        }
+
+        log_messages.push(format!(
+            "✓ Worktree created successfully at: {}",
+            path.display()
+        ));
+        info!("Successfully created worktree at: {}", path.display());
+        Ok(log_messages)
+    }
+
     /// Remove a worktree
     pub fn remove(&self, path: &Path, force: bool) -> Result<()> {
         info!("Removing worktree at: {}", path.display());

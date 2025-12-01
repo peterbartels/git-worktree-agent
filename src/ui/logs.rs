@@ -101,15 +101,16 @@ impl<'a> ScrollableLogsWidget<'a> {
                     ]));
                 }
                 CommandOutput::Exit(code) => {
-                    let style = if *code == 0 {
-                        Style::default().fg(self.theme.success)
-                    } else {
-                        Style::default().fg(self.theme.error)
-                    };
-                    lines.push(Line::from(vec![
-                        Span::raw("  "),
-                        Span::styled(format!("Exit code: {}", code), style),
-                    ]));
+                    // Only show exit code if non-zero (errors)
+                    if *code != 0 {
+                        lines.push(Line::from(vec![
+                            Span::raw("  "),
+                            Span::styled(
+                                format!("Exit code: {}", code),
+                                Style::default().fg(self.theme.error),
+                            ),
+                        ]));
+                    }
                 }
                 CommandOutput::Error(msg) => {
                     lines.push(Line::from(vec![
@@ -254,12 +255,13 @@ impl<'a> BranchLogWidget<'a> {
                     )));
                 }
                 CommandOutput::Exit(code) => {
-                    let style = if *code == 0 {
-                        Style::default().fg(self.theme.success)
-                    } else {
-                        Style::default().fg(self.theme.error)
-                    };
-                    lines.push(Line::from(Span::styled(format!("Exit: {}", code), style)));
+                    // Only show exit code if non-zero (errors)
+                    if *code != 0 {
+                        lines.push(Line::from(Span::styled(
+                            format!("Exit: {}", code),
+                            Style::default().fg(self.theme.error),
+                        )));
+                    }
                 }
                 CommandOutput::Error(msg) => {
                     lines.push(Line::from(Span::styled(

@@ -22,6 +22,109 @@ pub enum ViewMode {
         /// User input (must be "yes" to proceed)
         input: String,
     },
+    /// Create new worktree dialog
+    CreateWorktree(CreateWorktreeState),
+}
+
+/// State for the create new worktree dialog (2-step wizard)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreateWorktreeState {
+    /// Current step in the wizard
+    pub step: CreateWorktreeStep,
+    /// Available base branches to checkout from (all branches)
+    pub base_branches: Vec<String>,
+    /// Index of selected base branch in the filtered list
+    pub selected_base_index: usize,
+    /// Filter text for base branches
+    pub base_branch_filter: String,
+    /// The selected base branch (set after step 1)
+    pub selected_base: Option<String>,
+    /// New branch name input
+    pub new_branch_name: String,
+    /// Default branch name (for placeholder display)
+    pub default_branch: Option<String>,
+}
+
+/// Which step of the create worktree wizard
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CreateWorktreeStep {
+    /// Step 1: Select base branch (with search)
+    SelectBaseBranch,
+    /// Step 2: Enter new branch name
+    EnterBranchName,
+}
+
+impl CreateWorktreeState {
+    pub fn new(base_branches: Vec<String>, default_branch: Option<&str>) -> Self {
+        let selected_base_index = default_branch
+            .and_then(|db| base_branches.iter().position(|b| b == db))
+            .unwrap_or(0);
+
+        Self {
+            step: CreateWorktreeStep::SelectBaseBranch,
+            base_branches,
+            selected_base_index,
+            base_branch_filter: String::new(),
+            selected_base: None,
+            new_branch_name: String::new(),
+            default_branch: default_branch.map(|s| s.to_string()),
+        }
+    }
+
+    /// Get filtered list of base branches
+    pub fn filtered_branches(&self) -> Vec<&String> {
+        if self.base_branch_filter.is_empty() {
+            self.base_branches.iter().collect()
+        } else {
+            let filter_lower = self.base_branch_filter.to_lowercase();
+            self.base_branches
+                .iter()
+                .filter(|b| b.to_lowercase().contains(&filter_lower))
+                .collect()
+        }
+    }
+
+    /// Get the currently highlighted base branch from the filtered list
+    pub fn highlighted_base_branch(&self) -> Option<&str> {
+        let filtered = self.filtered_branches();
+        filtered.get(self.selected_base_index).map(|s| s.as_str())
+    }
+
+    /// Reset selection when filter changes
+    pub fn on_filter_changed(&mut self) {
+        self.selected_base_index = 0;
+    }
+
+    /// Move to the next step
+    pub fn next_step(&mut self) -> bool {
+        match self.step {
+            CreateWorktreeStep::SelectBaseBranch => {
+                if let Some(branch) = self.highlighted_base_branch() {
+                    self.selected_base = Some(branch.to_string());
+                    self.step = CreateWorktreeStep::EnterBranchName;
+                    true
+                } else {
+                    false
+                }
+            }
+            CreateWorktreeStep::EnterBranchName => {
+                // This is the final step, Enter will create
+                false
+            }
+        }
+    }
+
+    /// Move to the previous step
+    pub fn prev_step(&mut self) {
+        match self.step {
+            CreateWorktreeStep::SelectBaseBranch => {
+                // Already at first step
+            }
+            CreateWorktreeStep::EnterBranchName => {
+                self.step = CreateWorktreeStep::SelectBaseBranch;
+            }
+        }
+    }
 }
 
 /// Setup wizard step

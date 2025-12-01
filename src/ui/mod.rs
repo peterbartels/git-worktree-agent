@@ -1,4 +1,4 @@
-//! TUI components for git-worktree-agent
+//! TUI components for git-worktree-manager
 
 mod branch_list;
 mod help;

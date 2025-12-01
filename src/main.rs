@@ -1,4 +1,4 @@
-//! Git Worktree Agent - A TUI for managing git worktrees from remote branches
+//! Git Worktree Manager - A TUI for managing git worktrees from remote branches
 //!
 //! This application watches a remote repository for new branches and automatically
 //! creates local worktrees for them, running configured commands (like `npm install`)
@@ -16,16 +16,16 @@ use color_eyre::eyre::Result;
 use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Git Worktree Agent - Manage git worktrees from remote branches
+/// Git Worktree Manager - Manage git worktrees from remote branches
 #[derive(Parser, Debug)]
-#[command(name = "gwa")]
+#[command(name = "gwm")]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to the git repository (defaults to current directory)
     #[arg(short, long)]
     path: Option<PathBuf>,
 
-    /// Enable debug logging (writes to gwa-debug.log)
+    /// Enable debug logging (writes to gwm-debug.log)
     #[arg(short, long)]
     debug: bool,
 
@@ -76,7 +76,7 @@ fn main() -> Result<()> {
     if is_tui_mode {
         if args.debug {
             // Write debug logs to a file when running TUI
-            let log_file = std::fs::File::create(repo_path.join("gwa-debug.log"))
+            let log_file = std::fs::File::create(repo_path.join("gwm-debug.log"))
                 .expect("Failed to create log file");
             let filter = EnvFilter::new("debug");
             tracing_subscriber::registry()
@@ -127,14 +127,23 @@ fn main() -> Result<()> {
         Err(e) => {
             // Show error in TUI before exiting
             show_startup_error(terminal, &e.to_string());
-            Ok(())
+            Ok(None)
         }
     };
 
     // Ensure mouse capture is disabled on exit
     crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture).ok();
     ratatui::restore();
-    result
+
+    // If user requested to open a directory, print the path
+    if let Ok(Some(ref dir)) = result {
+        println!();
+        println!("To enter the worktree directory, run:");
+        println!("  cd {}", dir.display());
+        println!();
+    }
+
+    result.map(|_| ())
 }
 
 /// Show a startup error in a TUI dialog
@@ -213,11 +222,11 @@ fn show_startup_error(mut terminal: ratatui::DefaultTerminal, error_msg: &str) {
 
                 lines.push(Line::raw(""));
                 lines.push(Line::from(Span::styled(
-                    "Make sure you run gwa from within a git repository,",
+                    "Make sure you run gwm from within a git repository,",
                     Style::default().fg(theme_muted),
                 )));
                 lines.push(Line::from(Span::styled(
-                    "or specify the path with: gwa --path /path/to/repo",
+                    "or specify the path with: gwm --path /path/to/repo",
                     Style::default().fg(theme_muted),
                 )));
                 lines.push(Line::raw(""));
@@ -264,7 +273,7 @@ fn show_config(repo_path: &PathBuf) -> Result<()> {
     let repo = git::Repository::discover(repo_path)?;
     let config = config::Config::load(repo.main_root())?;
 
-    println!("Git Worktree Agent Configuration");
+    println!("Git Worktree Manager Configuration");
     println!("================================");
     println!();
     println!("Remote: {}", config.remote_name);
@@ -329,7 +338,7 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     let repo = git::Repository::discover(repo_path)?;
     let mut config = config::Config::load(repo.main_root())?;
 
-    println!("Git Worktree Agent - Configuration");
+    println!("Git Worktree Manager - Configuration");
     println!("===================================");
     println!();
 
@@ -403,7 +412,7 @@ fn init_config(repo_path: &PathBuf) -> Result<()> {
     println!();
     println!("Configuration saved to {}", config::CONFIG_FILE_NAME);
     println!();
-    println!("You can now run 'gwa' to start the TUI.");
+    println!("You can now run 'gwm' to start the TUI.");
 
     Ok(())
 }
