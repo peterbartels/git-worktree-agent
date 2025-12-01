@@ -241,7 +241,10 @@ impl Watcher {
                     }
 
                     // Check if worktree already exists
-                    if worktree_agent.has_worktree_for_branch(branch).unwrap_or(false) {
+                    if worktree_agent
+                        .has_worktree_for_branch(branch)
+                        .unwrap_or(false)
+                    {
                         continue;
                     }
 
