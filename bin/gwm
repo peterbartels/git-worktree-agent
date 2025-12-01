@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+
+/**
+ * Entry point for git-worktree-manager (gwm)
+ * 
+ * This script finds and executes the platform-specific binary.
+ */
+
+const { execFileSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+
+const BIN_NAME = process.platform === "win32" ? "gwm.exe" : "gwm";
+const LOCAL_BIN_NAME = process.platform === "win32" ? "gwm-binary.exe" : "gwm-binary";
+
+// Possible binary locations
+const possiblePaths = [
+  // Binary in the same bin directory (copied by postinstall with -binary suffix)
+  path.join(__dirname, LOCAL_BIN_NAME),
+  // Fallback: try to find in platform package
+  (() => {
+    const platform = process.platform;
+    const arch = process.arch;
+    const platformMap = {
+      darwin: { x64: "darwin-x64", arm64: "darwin-arm64" },
+      linux: { x64: "linux-x64", arm64: "linux-arm64" },
+      win32: { x64: "win32-x64" },
+    };
+    const variant = platformMap[platform]?.[arch];
+    if (variant) {
+      try {
+        const pkgPath = require.resolve(`@gwm/${variant}/package.json`);
+        return path.join(path.dirname(pkgPath), BIN_NAME);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  })(),
+].filter(Boolean);
+
+// Find the first existing binary
+let binaryPath = null;
+for (const p of possiblePaths) {
+  if (fs.existsSync(p)) {
+    binaryPath = p;
+    break;
+  }
+}
+
+if (!binaryPath) {
+  console.error("Error: Could not find gwm binary.");
+  console.error("");
+  console.error("This may happen if:");
+  console.error("  - The postinstall script failed to download the binary");
+  console.error("  - Your platform is not supported");
+  console.error("");
+  console.error("You can try:");
+  console.error("  1. Reinstall: npm install -g git-worktree-manager");
+  console.error("  2. Install via cargo: cargo install git-worktree-manager");
+  console.error("");
+  process.exit(1);
+}
+
+// Execute the binary with all arguments
+try {
+  execFileSync(binaryPath, process.argv.slice(2), {
+    stdio: "inherit",
+  });
+} catch (error) {
+  if (error.status !== undefined) {
+    process.exit(error.status);
+  }
+  throw error;
+}

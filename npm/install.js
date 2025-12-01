@@ -16,6 +16,12 @@ const PACKAGE_NAME = "git-worktree-manager";
 const BIN_NAME = "gwm";
 const VERSION = require("../package.json").version;
 
+// Skip installation in CI or development environments
+if (process.env.CI || process.env.GWM_SKIP_INSTALL) {
+  console.log("Skipping binary installation (CI/development mode)");
+  process.exit(0);
+}
+
 // Platform mappings
 const PLATFORMS = {
   darwin: {
@@ -52,7 +58,7 @@ function getPlatformPackage() {
 
 function getBinaryPath() {
   const binDir = path.join(__dirname, "..", "bin");
-  const binName = process.platform === "win32" ? `${BIN_NAME}.exe` : BIN_NAME;
+  const binName = process.platform === "win32" ? `${BIN_NAME}-binary.exe` : `${BIN_NAME}-binary`;
   return path.join(binDir, binName);
 }
 
@@ -112,14 +118,14 @@ async function downloadBinary() {
     }
     console.log(`Successfully installed ${BIN_NAME}`);
   } catch (e) {
-    console.error(`Failed to download binary: ${e.message}`);
-    console.error("");
-    console.error("You can try installing manually:");
-    console.error("  cargo install git-worktree-manager");
-    console.error("");
-    console.error("Or download from:");
-    console.error(`  ${releaseUrl}`);
-    process.exit(1);
+    console.warn(`Failed to download binary: ${e.message}`);
+    console.warn("");
+    console.warn("The binary could not be downloaded. You can:");
+    console.warn("  1. Install manually: cargo install git-worktree-manager");
+    console.warn(`  2. Download from: ${releaseUrl}`);
+    console.warn("");
+    console.warn("If you're developing locally, you can build with: cargo build --release");
+    // Don't exit with error - allow installation to complete for development
   }
 }
 

@@ -1,0 +1,249 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write  # Required for npm provenance/OIDC
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm install
+        env:
+          GWM_SKIP_INSTALL: "1"
+
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: npm run release
+          version: npm run version
+          title: "chore: version packages"
+          commit: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+
+  build-binaries:
+    name: Build Binaries
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux
+            arch: arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            platform: darwin
+            arch: x64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            platform: darwin
+            arch: arm64
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+            platform: win32
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build (cross)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (native)
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package binary (Unix)
+        if: matrix.platform != 'win32'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/gwm dist/gwm
+          chmod +x dist/gwm
+
+      - name: Package binary (Windows)
+        if: matrix.platform == 'win32'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/gwm.exe dist/gwm.exe
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gwm-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/
+
+  publish-platform-packages:
+    name: Publish Platform Packages
+    needs: [release, build-binaries]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for npm provenance/OIDC
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            arch: x64
+          - platform: linux
+            arch: arm64
+          - platform: darwin
+            arch: x64
+          - platform: darwin
+            arch: arm64
+          - platform: win32
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Get version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gwm-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/
+
+      - name: Create platform package
+        run: |
+          mkdir -p npm-package
+          
+          # Copy binary with correct name
+          if [ "${{ matrix.platform }}" = "win32" ]; then
+            cp dist/gwm.exe npm-package/gwm.exe
+          else
+            cp dist/gwm npm-package/gwm
+            chmod +x npm-package/gwm
+          fi
+          
+          # Create package.json for platform package
+          cat > npm-package/package.json << EOF
+          {
+            "name": "@gwm/${{ matrix.platform }}-${{ matrix.arch }}",
+            "version": "${{ steps.version.outputs.version }}",
+            "description": "Platform-specific binary for git-worktree-manager (${{ matrix.platform }}-${{ matrix.arch }})",
+            "os": ["${{ matrix.platform }}"],
+            "cpu": ["${{ matrix.arch }}"],
+            "main": "gwm${{ matrix.platform == 'win32' && '.exe' || '' }}",
+            "files": ["gwm${{ matrix.platform == 'win32' && '.exe' || '' }}"],
+            "license": "MIT",
+            "repository": {
+              "type": "git",
+              "url": "https://github.com/peterbartels/git-worktree-manager"
+            },
+            "publishConfig": {
+              "access": "public"
+            }
+          }
+          EOF
+
+      - name: Publish platform package
+        run: |
+          cd npm-package
+          npm publish --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [release, build-binaries]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Rename binaries for release
+          cp artifacts/gwm-linux-x64/gwm release-assets/gwm-linux-x64
+          cp artifacts/gwm-linux-arm64/gwm release-assets/gwm-linux-arm64
+          cp artifacts/gwm-darwin-x64/gwm release-assets/gwm-darwin-x64
+          cp artifacts/gwm-darwin-arm64/gwm release-assets/gwm-darwin-arm64
+          cp artifacts/gwm-win32-x64/gwm.exe release-assets/gwm-win32-x64.exe
+          
+          chmod +x release-assets/gwm-*
+          
+          # Create checksums
+          cd release-assets
+          sha256sum * > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

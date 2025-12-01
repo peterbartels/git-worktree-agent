@@ -2,27 +2,38 @@
 
 A terminal UI for managing git worktrees from remote branches with automatic polling and configurable hooks.
 
+[![npm version](https://img.shields.io/npm/v/git-worktree-manager.svg)](https://www.npmjs.com/package/git-worktree-manager)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ![Demo](docs/demo.gif)
-
-## Features
-
-- 🔄 **Automatic Branch Watching**: Polls remote for new branches every 10 seconds (configurable)
-- 🌳 **Smart Worktree Creation**: Automatically creates local worktrees for remote branches
-- ⚡ **Post-Create Hooks**: Run commands like `npm install` automatically when worktrees are created
-- 📋 **Track/Untrack Branches**: Fine-grained control over which branches to manage
-- 🎯 **Pattern-Based Filtering**: Ignore branches matching glob patterns
-- 💾 **Persistent Configuration**: JSON config file (gitignored for per-user settings)
-- 🖥️ **Beautiful TUI**: Built with ratatui for a modern terminal experience
 
 ## Installation
 
 ### Via npm (recommended)
 
+The easiest way to install `gwm` is via npm. This works on Linux, macOS, and Windows:
+
 ```bash
 npm install -g git-worktree-manager
 ```
 
+After installation, the `gwm` command will be available globally:
+
+```bash
+gwm --version
+```
+
+### Via npx (no install)
+
+You can also run `gwm` directly without installing:
+
+```bash
+npx git-worktree-manager
+```
+
 ### Via Cargo
+
+If you have Rust installed, you can install via Cargo:
 
 ```bash
 cargo install git-worktree-manager
@@ -35,6 +46,24 @@ git clone https://github.com/peterbartels/git-worktree-manager
 cd git-worktree-manager
 cargo install --path .
 ```
+
+### Download Binary
+
+Pre-built binaries are available on the [GitHub Releases](https://github.com/peterbartels/git-worktree-manager/releases) page for:
+
+- Linux (x64, arm64)
+- macOS (x64, Apple Silicon)
+- Windows (x64)
+
+## Features
+
+- 🔄 **Automatic Branch Watching**: Polls remote for new branches every 10 seconds (configurable)
+- 🌳 **Smart Worktree Creation**: Automatically creates local worktrees for remote branches
+- ⚡ **Post-Create Hooks**: Run commands like `npm install` automatically when worktrees are created
+- 📋 **Track/Untrack Branches**: Fine-grained control over which branches to manage
+- 🎯 **Pattern-Based Filtering**: Ignore branches matching glob patterns
+- 💾 **Persistent Configuration**: JSON config file (gitignored for per-user settings)
+- 🖥️ **Beautiful TUI**: Built with ratatui for a modern terminal experience
 
 ## Quick Start
 
@@ -277,6 +306,8 @@ gwm --show-config  # Verify configuration
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for information on how releases are managed.
 
 ## License
 
