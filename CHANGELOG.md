@@ -1,5 +1,11 @@
 # git-worktree-agent
 
+## 0.2.2
+
+### Patch Changes
+
+- 1bbc692: Bundle all platform binaries in single npm package for simpler installation
+
 ## 0.2.1
 
 ### Patch Changes
