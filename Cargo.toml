@@ -43,7 +43,7 @@ clap = { version = "4.5", features = ["derive"] }
 dirs = "5.0"
 
 # UUID for unique IDs
-uuid = { version = "1.11", features = ["v4"] }
+uuid = { version = "1.19", features = ["v4"] }
 
 # Read the optimization guideline for more details: https://ratatui.rs/recipes/apps/release-your-app/#optimizations
 [profile.release]
