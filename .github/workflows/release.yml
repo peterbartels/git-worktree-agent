@@ -76,7 +76,7 @@ jobs:
           cp target/${{ matrix.target }}/release/gwa.exe dist/gwa-${{ matrix.platform }}-${{ matrix.arch }}.exe
 
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary-${{ matrix.platform }}-${{ matrix.arch }}
           path: dist/
